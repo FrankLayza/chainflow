@@ -1,0 +1,46 @@
+{
+  "name": "chainflow",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ai": "^7.0.41",
+    "framer-motion": "^12.43.0",
+    "lucide-react": "^1.27.0",
+    "next": "16.2.12",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.12",
+    "tailwindcss": "^4",
+    "typescript": "^7.0.2"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowAny": [
+        "typescript"
+      ],
+      "ignoreMissing": [
+        "@emnapi/core",
+        "@emnapi/runtime"
+      ]
+    }
+  }
+}
