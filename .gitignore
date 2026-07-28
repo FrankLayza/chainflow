@@ -25,3 +25,14 @@ Thumbs.db
 
 # Misc
 *.log
+
+# HIOS internal docs and framework
+HIOS/
+hios_*.md
+AI_HANDOFF.md
+DECISIONS.md
+PROJECT_PROGRESS.md
+OBSIDIAN_NOTE.md
+OBSIDIAN_NOTES.md
+KNOWN_ISSUES.md
+
