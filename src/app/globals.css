@@ -1,6 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Sora:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
+  /* Fonts */
+  --font-sora: 'Sora', sans-serif;
+  --font-outfit: 'Outfit', sans-serif;
+
   /* Colors */
   --color-warm-off-white: #faf9f6;
   --color-bone-gray: #868684;
@@ -51,23 +56,7 @@
   --leading-display: 1;
   --tracking-display: -2.04px;
 
-  /* Spacing */
-  --spacing-4: 4px;
-  --spacing-6: 6px;
-  --spacing-8: 8px;
-  --spacing-10: 10px;
-  --spacing-11: 11px;
-  --spacing-12: 12px;
-  --spacing-14: 14px;
-  --spacing-16: 16px;
-  --spacing-24: 24px;
-  --spacing-30: 30px;
-  --spacing-32: 32px;
-  --spacing-36: 36px;
-  --spacing-40: 40px;
-  --spacing-44: 44px;
-  --spacing-64: 64px;
-  --spacing-66: 66px;
+
 
   /* Border Radius */
   --radius-md: 4px;
@@ -82,10 +71,10 @@
 }
 
 body {
-  background: var(--color-deep-ember);
+  background: #000000;
   color: var(--color-warm-off-white);
   overflow: hidden;
-  font-family: var(--font-matter), sans-serif;
+  font-family: 'Sora', sans-serif;
 }
 
 /* Glassmorphic Panel Utility */

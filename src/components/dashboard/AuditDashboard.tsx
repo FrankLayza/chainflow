@@ -18,24 +18,24 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
   isLoading,
 }) => {
   return (
-    <div className="w-full h-full flex flex-col gap-6 p-6 overflow-y-auto">
+    <div className="w-full h-full flex flex-col gap-5 p-6 overflow-y-auto bg-deep-ember">
       {/* Dashboard Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between border-b border-iron-veil pb-3">
         <div>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-emerald-400" />
+          <h2 className="text-sm font-mono text-warm-off-white tracking-tight flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-gold-leaf" />
             <span>Execution & Audit Dossier</span>
           </h2>
-          <p className="text-xs text-gray-400">Live verified on-chain transactions via KeeperHub</p>
+          <p className="text-[11px] text-bone-gray font-mono mt-0.5">Live verified on-chain transactions via KeeperHub</p>
         </div>
 
         {onRefresh && (
           <button
             onClick={onRefresh}
             disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-gray-300 transition-colors border border-white/10"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-smoke-charcoal hover:bg-iron-veil text-bone-gray text-[11px] font-mono transition-colors border border-iron-veil"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </button>
         )}
@@ -43,29 +43,30 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
 
       {/* Active Rules Grid */}
       <div>
-        <h3 className="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-3">
-          Active Automation Rules ({rules.length})
+        <h3 className="text-caption-tracked uppercase tracking-[0.15em] text-bone-gray font-mono mb-3">
+          Active Rules ({rules.length})
         </h3>
         {rules.length === 0 ? (
-          <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 text-center text-xs text-gray-500">
-            No rules active yet. Type a rule in chat or click a preset to start!
+          <div className="p-4 rounded-lg bg-smoke-charcoal border border-iron-veil text-center text-sm text-bone-gray font-mono">
+            No rules active yet. Type a rule in chat or use a preset.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-2">
             {rules.map((rule, idx) => (
               <div
                 key={rule.id || idx}
-                className="p-4 rounded-xl bg-[#121522]/80 border border-white/10 space-y-2 text-xs"
+                className="p-3 rounded-lg bg-smoke-charcoal border border-iron-veil space-y-1.5"
               >
-                <div className="flex justify-between items-start">
-                  <span className="font-semibold text-cyan-300">{rule.ruleType}</span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] border border-emerald-500/20">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-mono text-gold-leaf">{rule.ruleType}</span>
+                  <span className="flex items-center gap-1 text-[11px] font-mono text-[#28c840]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#28c840]" />
                     Active
                   </span>
                 </div>
-                <p className="text-gray-300 line-clamp-2">{rule.explanation}</p>
-                <div className="text-[10px] text-gray-500 font-mono pt-1">
-                  Network: {rule.network}
+                <p className="text-sm text-bone-gray line-clamp-2">{rule.explanation}</p>
+                <div className="text-[11px] text-bone-gray font-mono">
+                  {rule.network}
                 </div>
               </div>
             ))}
@@ -74,60 +75,60 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
       </div>
 
       {/* Execution Audit Log Table */}
-      <div className="flex-1">
-        <h3 className="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-3">
-          Verified Execution Log ({executions.length})
+      <div className="flex-1 min-h-0">
+        <h3 className="text-caption-tracked uppercase tracking-[0.15em] text-bone-gray font-mono mb-3">
+          Execution Log ({executions.length})
         </h3>
-        <div className="w-full rounded-2xl bg-[#0f111a] border border-white/10 overflow-hidden shadow-xl">
+        <div className="w-full rounded-lg bg-smoke-charcoal border border-iron-veil overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-white/[0.03] text-gray-400 text-[11px] border-b border-white/5 uppercase">
+            <table className="w-full text-left">
+              <thead className="border-b border-iron-veil">
                 <tr>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Timestamp</th>
-                  <th className="py-3 px-4">Amount</th>
-                  <th className="py-3 px-4">Recipient</th>
-                  <th className="py-3 px-4">Gas / Sponsor</th>
-                  <th className="py-3 px-4">Transaction Hash</th>
+                  <th className="py-2.5 px-3 text-caption-tracked uppercase tracking-[0.1em] text-bone-gray font-mono">Status</th>
+                  <th className="py-2.5 px-3 text-caption-tracked uppercase tracking-[0.1em] text-bone-gray font-mono">Time</th>
+                  <th className="py-2.5 px-3 text-caption-tracked uppercase tracking-[0.1em] text-bone-gray font-mono">Amount</th>
+                  <th className="py-2.5 px-3 text-caption-tracked uppercase tracking-[0.1em] text-bone-gray font-mono">Recipient</th>
+                  <th className="py-2.5 px-3 text-caption-tracked uppercase tracking-[0.1em] text-bone-gray font-mono">Gas</th>
+                  <th className="py-2.5 px-3 text-caption-tracked uppercase tracking-[0.1em] text-bone-gray font-mono">Tx Hash</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 font-mono text-gray-300">
+              <tbody className="divide-y divide-iron-veil font-mono text-sm">
                 {executions.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-gray-500 text-xs font-sans">
+                    <td colSpan={6} className="py-8 text-center text-bone-gray text-sm">
                       No on-chain executions recorded yet.
                     </td>
                   </tr>
                 ) : (
                   executions.map((exec) => (
-                    <tr key={exec.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="py-3.5 px-4 font-sans">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px]">
+                    <tr key={exec.id} className="hover:bg-iron-veil/50 transition-colors">
+                      <td className="py-2.5 px-3">
+                        <span className="flex items-center gap-1.5 text-[#28c840]">
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           <span>{exec.status}</span>
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-gray-400">{exec.timestamp}</td>
-                      <td className="py-3.5 px-4 font-semibold text-white">{exec.amount} ETH</td>
-                      <td className="py-3.5 px-4 text-cyan-300">
+                      <td className="py-2.5 px-3 text-bone-gray">{exec.timestamp}</td>
+                      <td className="py-2.5 px-3 text-warm-off-white">{exec.amount} ETH</td>
+                      <td className="py-2.5 px-3 text-muted-cobalt">
                         {exec.recipientAddress.slice(0, 6)}...{exec.recipientAddress.slice(-4)}
                       </td>
-                      <td className="py-3.5 px-4 text-emerald-300">
+                      <td className="py-2.5 px-3 text-gold-leaf">
                         {exec.gasUsed || '77,119 units'} (Sponsored)
                       </td>
-                      <td className="py-3.5 px-4">
+                      <td className="py-2.5 px-3">
                         {exec.explorerUrl ? (
                           <a
                             href={exec.explorerUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-cyan-400 hover:text-cyan-300 hover:underline"
+                            className="inline-flex items-center gap-1 text-muted-cobalt hover:text-warm-off-white transition-colors"
                           >
-                            <span>{exec.txHash ? exec.txHash.slice(0, 8) + '...' + exec.txHash.slice(-6) : 'View Explorer'}</span>
+                            <span>{exec.txHash ? exec.txHash.slice(0, 8) + '...' + exec.txHash.slice(-6) : 'View'}</span>
                             <ExternalLink className="w-3 h-3" />
                           </a>
                         ) : (
-                          <span className="text-gray-500">{exec.txHash?.slice(0, 10)}...</span>
+                          <span className="text-bone-gray">{exec.txHash?.slice(0, 10)}...</span>
                         )}
                       </td>
                     </tr>
