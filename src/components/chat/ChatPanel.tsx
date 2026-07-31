@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { ParsedRule } from '@/types/rule';
-import { ParsedRuleCard } from './ParsedRuleCard';
+import { ParsedRuleCard, RuleSimulation } from './ParsedRuleCard';
 import { Send, Bot, User } from 'lucide-react';
 
 interface ChatMessage {
@@ -10,12 +10,15 @@ interface ChatMessage {
   sender: 'user' | 'ai';
   text: string;
   parsedRule?: ParsedRule;
+  simulation?: RuleSimulation | null;
+  isSimulating?: boolean;
   timestamp: string;
 }
 
 interface ChatPanelProps {
   onParsePrompt: (prompt: string) => Promise<ParsedRule | null>;
   onActivateRule: (rule: ParsedRule) => void;
+  onSimulateRule: (rule: ParsedRule) => Promise<RuleSimulation | null>;
   isExecuting?: boolean;
   externalPrompt?: string;
 }
@@ -23,6 +26,7 @@ interface ChatPanelProps {
 export const ChatPanel: React.FC<ChatPanelProps> = ({
   onParsePrompt,
   onActivateRule,
+  onSimulateRule,
   isExecuting,
   externalPrompt,
 }) => {
@@ -57,11 +61,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         const aiMsg: ChatMessage = {
           id: crypto.randomUUID(),
           sender: 'ai',
-          text: 'Here is the structured automation rule parsed from your request:',
+          text: 'Here is the structured rule parsed from your request:',
           parsedRule,
+          isSimulating: true,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
         setMessages((prev) => [...prev, aiMsg]);
+
+        const simulation = await onSimulateRule(parsedRule);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiMsg.id ? { ...m, simulation, isSimulating: false } : m
+          )
+        );
       }
     } catch (error: any) {
       setMessages((prev) => [
@@ -114,6 +126,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                     rule={msg.parsedRule}
                     onActivate={onActivateRule}
                     isExecuting={isExecuting}
+                    simulation={msg.simulation}
+                    isSimulating={msg.isSimulating}
                   />
                 )}
               </div>

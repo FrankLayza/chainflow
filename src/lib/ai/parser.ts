@@ -13,8 +13,8 @@ export async function parseNaturalLanguageRule(input: string): Promise<ParsedRul
     throw new Error('Prompt input cannot be empty.');
   }
 
-  // If OPENAI_API_KEY is available, use Vercel AI SDK generateObject
-  if (process.env.OPENAI_API_KEY) {
+  // If GOOGLE_GENERATIVE_AI_API_KEY is available, use Vercel AI SDK generateObject
+  if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     try {
       const { object } = await generateObject({
         model: google('gemini-2.5-flash'),
