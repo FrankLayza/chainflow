@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { PRESET_RULES, PresetRule } from '@/lib/ai/presets';
-import { ArrowUpRight, TrendingDown, Clock, Sparkles } from 'lucide-react';
+import { ArrowUpRight, Sparkles } from 'lucide-react';
 
 interface PresetBarProps {
   onSelectPreset: (preset: PresetRule) => void;
@@ -11,8 +11,6 @@ interface PresetBarProps {
 
 const iconMap: Record<string, React.ReactNode> = {
   ArrowUpRight: <ArrowUpRight className="w-4 h-4 text-muted-cobalt" />,
-  TrendingDown: <TrendingDown className="w-4 h-4 text-muted-cobalt" />,
-  Clock: <Clock className="w-4 h-4 text-muted-cobalt" />,
 };
 
 export const PresetBar: React.FC<PresetBarProps> = ({ onSelectPreset, disabled }) => {

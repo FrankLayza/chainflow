@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ParsedRule } from '@/types/rule';
 import { ParsedRuleCard, RuleSimulation } from './ParsedRuleCard';
+import { PRESET_RULES } from '@/lib/ai/presets';
 import { Send, Bot, User, Copy, Check, ExternalLink } from 'lucide-react';
 
 export interface ExecutionReceipt {
@@ -254,17 +255,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       <div className="w-full bg-absolute border-t border-iron-veil/60">
         <div className="w-full max-w-3xl mx-auto px-6 py-4">
           <div className="flex flex-wrap justify-center gap-2 mb-4">
-            {[
-              "Transfer 0.0001 ETH to 0xd2107C0e5fd43faDd5D3200F6084C3786a83A7A1",
-              "If balance > 0.05 ETH, transfer 0.0001 ETH to 0xd2107C0e5fd43faDd5D3200F6084C3786a83A7A1",
-              "If ETH price is below $10000, transfer 0.0001 ETH to 0xd2107C0e5fd43faDd5D3200F6084C3786a83A7A1"
-            ].map((preset, idx) => (
+            {PRESET_RULES.map((preset) => (
               <button
-                key={idx}
-                onClick={() => setInput(preset)}
+                key={preset.id}
+                onClick={() => setInput(preset.promptText)}
                 className="text-xs px-3 py-1.5 rounded-full border border-iron-veil hover:border-pale-stone text-bone-gray hover:text-warm-off-white transition-colors cursor-pointer"
               >
-                {preset}
+                {preset.promptText}
               </button>
             ))}
           </div>
