@@ -12,4 +12,7 @@ Write minimal comments. Only comment on non-obvious intent or a deliberate trade
 
 ## Tailwind CSS
 Always use Tailwind's named utility classes. Never write arbitrary values like `tracking-[0.1em]`, `text-[11px]`, or `w-[14px]` when a built-in scale value exists. Prefer `tracking-wider`, `text-xs`, `w-3.5`, etc. Only reach for bracket notation when the design token genuinely has no semantic equivalent in the Tailwind scale.
+
+## Environment Variables & Secrets
+Never hardcode secrets, API keys, or environment-specific values (integration IDs, wallet addresses, URLs) in source code. Always reference them via `process.env.VARIABLE_NAME` and add them to `.env.local`. Do not print, log, or echo secret values. If a value is needed at runtime, read it from env; never commit it.
 <!-- END:code-style-rules -->

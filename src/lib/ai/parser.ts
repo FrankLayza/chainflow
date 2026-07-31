@@ -13,7 +13,6 @@ export async function parseNaturalLanguageRule(input: string): Promise<ParsedRul
     throw new Error('Prompt input cannot be empty.');
   }
 
-  // If GOOGLE_GENERATIVE_AI_API_KEY is available, use Vercel AI SDK generateObject
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     try {
       const { object } = await generateObject({
@@ -48,7 +47,7 @@ If the prompt asks for something out of scope or is missing a valid 0x address, 
 
   // --- Fallback Deterministic Parser (No API Key Required) ---
 
-  // Requirement 1: Require an EVM address
+
   const addressMatch = trimmed.match(/0x[a-fA-F0-9]{40}/);
   if (!addressMatch) {
     throw new Error('Missing target address. ChainFlow requires a valid Ethereum address (0x...) to execute transfers.');

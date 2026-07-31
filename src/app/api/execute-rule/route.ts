@@ -102,7 +102,7 @@ export async function POST(request: Request) {
       txHash = restResponse.transactionHash || restResponse.result?.transactionHash || null;
       explorerUrl = restResponse.transactionLink || restResponse.result?.transactionLink || null;
       gasUsed = restResponse.result?.gasUsed ?? null;
-      khResponse = restResponse;
+      khResponse = restResponse as unknown as Record<string, unknown>;
 
       if (executionId && (!txHash || restResponse.status === 'pending')) {
         try {
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
           txHash = statusResponse.transactionHash || statusResponse.result?.transactionHash || null;
           explorerUrl = statusResponse.transactionLink || statusResponse.result?.transactionLink || null;
           gasUsed = statusResponse.result?.gasUsed ?? null;
-          khResponse = statusResponse;
+          khResponse = statusResponse as unknown as Record<string, unknown>;
         } catch (pollErr) {
           console.warn('Initial status poll warning:', pollErr);
         }

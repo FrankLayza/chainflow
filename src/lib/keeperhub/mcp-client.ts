@@ -1,8 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp';
 
-const MCP_ENDPOINT = 'https://app.keeperhub.com/mcp';
-const DEFAULT_WALLET_INTEGRATION_ID = 'rs6bpnc61png1qfjl7y49';
+const MCP_ENDPOINT = process.env.KEEPERHUB_MCP_ENDPOINT || 'https://app.keeperhub.com/mcp';
 
 export interface TransferArgs {
   chain_id: string;
@@ -34,7 +33,11 @@ function getApiKey(): string {
 }
 
 export function getWalletIntegrationId(): string {
-  return process.env.KEEPERHUB_WALLET_INTEGRATION_ID || DEFAULT_WALLET_INTEGRATION_ID;
+  const id = process.env.KEEPERHUB_WALLET_INTEGRATION_ID;
+  if (!id) {
+    throw new Error('KEEPERHUB_WALLET_INTEGRATION_ID is missing from environment variables');
+  }
+  return id;
 }
 
 function resultText(result: MCPCallResult): string {
@@ -80,11 +83,11 @@ export class KeeperHubMCPClient {
   }
 
   async getWalletIntegration(integrationId: string = getWalletIntegrationId()): Promise<KeeperHubWallet | null> {
-    return this.callTool('get_wallet_integration', { integrationId });
+    return (await this.callTool('get_wallet_integration', { integrationId })) as KeeperHubWallet | null;
   }
 
   async executeTransfer(args: TransferArgs): Promise<Record<string, unknown> | null> {
-    return this.callTool('execute_transfer', args);
+    return this.callTool('execute_transfer', { ...args });
   }
 
   async getExecutionStatus(executionId: string): Promise<Record<string, unknown> | null> {
