@@ -133,15 +133,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         </div>
       </div>
 
-      {/* Chat Input Bar */}
       <div className="w-full bg-absolute border-t border-iron-veil/60">
         <div className="w-full max-w-3xl mx-auto px-6 py-4">
-          {/* Presets */}
           <div className="flex flex-wrap justify-center gap-2 mb-4">
             {[
-              "Buy 1 ETH when price is below $2000",
-              "Swap 100 USDC to BTC every week",
-              "Sell 50% of UNI if it drops by 10%"
+              "Transfer 0.0001 ETH to 0xd2107C0e5fd43faDd5D3200F6084C3786a83A7A1",
+              "If balance > 0.05 ETH, transfer 0.0001 ETH to 0xd2107C0e5fd43faDd5D3200F6084C3786a83A7A1",
+              "If ETH price is below $10000, transfer 0.0001 ETH to 0xd2107C0e5fd43faDd5D3200F6084C3786a83A7A1"
             ].map((preset, idx) => (
               <button
                 key={idx}

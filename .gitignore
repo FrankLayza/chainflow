@@ -44,4 +44,4 @@ docs/agents/
 
 # SQLite database and flat-file DB — contains live execution history, do not commit
 src/data/db.json
-src/data/chainflow.db
+src/data/chainflow.db*

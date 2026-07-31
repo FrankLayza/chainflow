@@ -58,6 +58,14 @@ export interface ActiveRule {
   created_at: string;
 }
 
+function cleanParams<T extends Record<string, any>>(obj: T): T {
+  const result: any = {};
+  for (const [key, val] of Object.entries(obj)) {
+    result[key] = val === undefined ? null : val;
+  }
+  return result;
+}
+
 // ---------------------------------------------------------------------------
 // Audit Records
 // ---------------------------------------------------------------------------
@@ -67,6 +75,35 @@ export function createAuditRecord(
 ): AuditRecord {
   const db = getDb();
   const now = new Date().toISOString();
+
+  const defaultRecord = {
+    id: '',
+    idempotency_key: null,
+    raw_input: '',
+    parsed_rule_json: null,
+    network: null,
+    keeperhub_execution_id: null,
+    status: 'PENDING',
+    transaction_hash: null,
+    explorer_url: null,
+    gas_used: null,
+    sponsored: 1,
+    recipient_address: null,
+    amount: null,
+    chain_id: null,
+    error_code: null,
+    error_message_safe: null,
+    created_at: now,
+    updated_at: now,
+  };
+
+  const params = cleanParams({
+    ...defaultRecord,
+    ...record,
+    sponsored: record.sponsored ? 1 : 0,
+    created_at: now,
+    updated_at: now,
+  });
 
   db.prepare(`
     INSERT INTO audit_records (
@@ -80,7 +117,7 @@ export function createAuditRecord(
       @gas_used, @sponsored, @recipient_address, @amount, @chain_id,
       @error_code, @error_message_safe, @created_at, @updated_at
     )
-  `).run({ ...record, created_at: now, updated_at: now });
+  `).run(params);
 
   return getAuditRecord(record.id)!;
 }
@@ -90,12 +127,13 @@ export function updateAuditRecord(
   patch: Partial<Omit<AuditRecord, 'id' | 'created_at'>>
 ): void {
   const db = getDb();
-  const fields = Object.keys(patch)
+  const cleanPatch = cleanParams(patch);
+  const fields = Object.keys(cleanPatch)
     .map((k) => `${k} = @${k}`)
     .join(', ');
   db.prepare(
     `UPDATE audit_records SET ${fields}, updated_at = @updated_at WHERE id = @id`
-  ).run({ ...patch, updated_at: new Date().toISOString(), id });
+  ).run({ ...cleanPatch, updated_at: new Date().toISOString(), id });
 }
 
 export function getAuditRecord(id: string): AuditRecord | null {
@@ -128,7 +166,7 @@ export function addAuditEvent(
   db.prepare(`
     INSERT INTO audit_events (id, audit_record_id, status, message_safe, occurred_at)
     VALUES (@id, @audit_record_id, @status, @message_safe, @occurred_at)
-  `).run(event);
+  `).run(cleanParams(event));
   return event;
 }
 
@@ -168,7 +206,7 @@ export function registerActiveRule(rule: ParsedRule): ActiveRule {
       @id, @raw_input, @rule_type, @action_type, @parameters_json,
       @explanation, @network, @status, @last_checked_at, @last_executed_at, @created_at
     )
-  `).run(row);
+  `).run(cleanParams(row));
 
   return row;
 }

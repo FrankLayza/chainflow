@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { executeTransfer, getExecutionStatus } from '@/lib/keeperhub/client';
-import { saveExecutionRecord, saveRule } from '@/lib/store';
-import { ExecutionRecord, ParsedRule } from '@/types/rule';
+import { createAuditRecord, addAuditEvent, registerActiveRule, RecordStatus } from '@/repositories/audit-repository';
+import { ParsedRule } from '@/types/rule';
 
 export async function POST(request: Request) {
   try {
@@ -18,10 +18,11 @@ export async function POST(request: Request) {
     const { targetAddress, transferAmount } = rule.parameters;
     const idempotencyKey = crypto.randomUUID();
 
-    // Trigger KeeperHub Direct Execution API
+    registerActiveRule(rule);
+
     const khResponse = await executeTransfer(
       {
-        chainId: 11155111, // Ethereum Sepolia
+        chainId: 11155111,
         recipientAddress: targetAddress,
         amount: transferAmount,
         simulate: simulate || false,
@@ -29,10 +30,6 @@ export async function POST(request: Request) {
       idempotencyKey
     );
 
-    // Save rule to active rules list
-    saveRule(rule);
-
-    // If simulation, return early
     if (simulate) {
       return NextResponse.json({
         success: true,
@@ -42,15 +39,12 @@ export async function POST(request: Request) {
     }
 
     const executionId = khResponse.executionId || 'ext-' + Date.now();
-
-    // Poll status briefly to see if transaction Hash was generated
     let statusResponse = khResponse;
     let txHash = khResponse.transactionHash || khResponse.result?.transactionHash;
     let explorerUrl = khResponse.transactionLink || khResponse.result?.transactionLink;
 
     if (khResponse.executionId && (!txHash || khResponse.status === 'pending')) {
       try {
-        // Wait 3s then poll once
         await new Promise((resolve) => setTimeout(resolve, 3000));
         statusResponse = await getExecutionStatus(khResponse.executionId);
         txHash = statusResponse.transactionHash || statusResponse.result?.transactionHash;
@@ -60,27 +54,28 @@ export async function POST(request: Request) {
       }
     }
 
-    // Build Execution Record
-    const record: ExecutionRecord = {
-      id: executionId,
-      ruleId: rule.id,
-      rawInput: rule.rawInput,
-      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC',
-      status: (statusResponse.status === 'completed' || statusResponse.status === 'confirmed'
-        ? 'CONFIRMED'
-        : 'PENDING') as any,
-      txHash: txHash || '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-      explorerUrl:
-        explorerUrl ||
-        `https://sepolia.etherscan.io/tx/${txHash || 'pending'}`,
-      gasUsed: statusResponse.result?.gasUsed ? `${statusResponse.result.gasUsed} units` : '77,119 units',
-      sponsored: true,
-      recipientAddress: targetAddress,
-      amount: transferAmount,
-      chainId: 11155111,
-    };
+    const finalStatus: RecordStatus = (statusResponse.status === 'completed' || statusResponse.status === 'confirmed'
+      ? 'CONFIRMED'
+      : 'PENDING');
 
-    saveExecutionRecord(record);
+    const record = createAuditRecord({
+      id: executionId,
+      idempotency_key: idempotencyKey,
+      raw_input: rule.rawInput,
+      parsed_rule_json: JSON.stringify(rule),
+      network: rule.network || 'Ethereum Sepolia',
+      keeperhub_execution_id: khResponse.executionId,
+      status: finalStatus,
+      transaction_hash: txHash,
+      explorer_url: explorerUrl || (txHash ? `https://sepolia.etherscan.io/tx/${txHash}` : undefined),
+      gas_used: statusResponse.result?.gasUsed ? `${statusResponse.result.gasUsed} units` : '77,119 units',
+      sponsored: true,
+      recipient_address: targetAddress,
+      amount: transferAmount,
+      chain_id: 11155111,
+    });
+
+    addAuditEvent(record.id, finalStatus, `Execution triggered via KeeperHub Direct Execution API. Tx: ${txHash || 'pending'}`);
 
     return NextResponse.json({
       success: true,

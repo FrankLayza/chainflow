@@ -26,16 +26,16 @@ export default function AppPage() {
             return data.rule;
           }}
           onActivateRule={async (rule) => {
-            const res = await fetch('/api/rules/activate', {
+            const res = await fetch('/api/execute-rule', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ rule }),
             });
             const data = await res.json();
             if (!res.ok) {
-              throw new Error(data.error || 'Failed to register rule');
+              throw new Error(data.error || 'Failed to execute rule');
             }
-            console.log('Rule queued for evaluation:', data.activeRule);
+            console.log('KeeperHub execution response:', data);
           }}
         />
       </div>
