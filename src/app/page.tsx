@@ -33,7 +33,7 @@ export default function LandingPage() {
         </span>
         <Link
           href="/app"
-          className="px-5 py-2 rounded-2xl bg-smoke-charcoal border border-iron-veil hover:border-pale-stone text-sm font-medium transition-all duration-150 active:scale-95 cursor-pointer"
+          className="px-5 py-2 rounded-2xl bg-smoke-charcoal border border-iron-veil hover:border-pale-stone text-sm font-medium transition duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-leaf cursor-pointer"
         >
           Launch App
         </Link>
@@ -63,7 +63,7 @@ export default function LandingPage() {
           <div className="pt-4 pointer-events-auto">
             <Link
               href="/app"
-              className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-warm-off-white text-deep-ember text-base font-semibold transition-all duration-150 hover:bg-pale-stone active:scale-95 cursor-pointer"
+              className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-warm-off-white text-deep-ember text-base font-semibold transition duration-150 hover:bg-pale-stone active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-leaf cursor-pointer"
             >
               Launch the app
               <ArrowRight className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-0.5" />
