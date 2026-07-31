@@ -102,7 +102,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
           className={`flex items-center gap-2 text-xs font-mono px-3 py-2 rounded-md border mb-4 ${
             simulationPassed
               ? 'text-gold-leaf border-gold-leaf/30 bg-gold-leaf/10'
-              : 'text-red-400 border-red-400/30 bg-red-400/10'
+              : 'text-danger border-danger/30 bg-danger/10'
           }`}
         >
           {simulationPassed ? (

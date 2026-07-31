@@ -57,8 +57,8 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-mono text-gold-leaf">{rule.ruleType}</span>
-                  <span className="flex items-center gap-1 text-xs font-mono text-green-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                  <span className="flex items-center gap-1 text-xs font-mono text-success">
+                    <span className="w-1.5 h-1.5 rounded-full bg-success" />
                     Active
                   </span>
                 </div>
@@ -97,7 +97,7 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
                   executions.map((exec) => (
                     <tr key={exec.id} className="hover:bg-iron-veil/50 transition-colors">
                       <td className="py-2.5 px-3">
-                        <span className="flex items-center gap-1.5 text-green-400">
+                        <span className="flex items-center gap-1.5 text-success">
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           <span>{exec.status}</span>
                         </span>
