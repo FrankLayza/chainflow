@@ -1,48 +1,90 @@
+import fs from 'fs';
+import path from 'path';
 import { ExecutionRecord, ParsedRule } from '@/types/rule';
 
-// Global memory store for rules and audit logs (survives dev hot-reloads)
-const globalStore = globalThis as unknown as {
-  __chainflow_rules?: ParsedRule[];
-  __chainflow_executions?: ExecutionRecord[];
-};
+// ---------------------------------------------------------------------------
+// Path to the JSON flat-file database.
+// Survives hot-reloads AND server restarts (unlike globalThis).
+// ---------------------------------------------------------------------------
+const DB_PATH = path.join(process.cwd(), 'src', 'data', 'db.json');
 
-if (!globalStore.__chainflow_rules) {
-  globalStore.__chainflow_rules = [];
+interface Db {
+  rules: (ParsedRule & { status?: string; lastCheckedAt?: string | null; lastExecutedAt?: string | null })[];
+  executions: ExecutionRecord[];
 }
 
-if (!globalStore.__chainflow_executions) {
-  // Pre-seed with the initial verified spike execution for instant audit proof!
-  globalStore.__chainflow_executions = [
-    {
-      id: 'w3jy3s3vt07q8dacxfn20',
-      rawInput: 'If wallet balance > 0.05 ETH, transfer 0.0001 ETH to 0xd2107C0e5fd43faDd5D3200F6084C3786a83A7A1',
-      timestamp: '2026-07-28 21:08:50 UTC',
-      status: 'CONFIRMED',
-      txHash: '0x5b67746e7c5f62da2edc41055dfa9828ea578754748174b47513d99696b4e471',
-      explorerUrl: 'https://sepolia.etherscan.io/tx/0x5b67746e7c5f62da2edc41055dfa9828ea578754748174b47513d99696b4e471',
-      gasUsed: '77119 units',
-      sponsored: true,
-      recipientAddress: '0xd2107C0e5fd43faDd5D3200F6084C3786a83A7A1',
-      amount: '0.0001',
-      chainId: 11155111,
-    },
-  ];
+function readDb(): Db {
+  try {
+    const raw = fs.readFileSync(DB_PATH, 'utf-8');
+    return JSON.parse(raw) as Db;
+  } catch {
+    // If file is missing or corrupt, start fresh
+    return { rules: [], executions: [] };
+  }
 }
+
+function writeDb(db: Db): void {
+  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2), 'utf-8');
+}
+
+// ---------------------------------------------------------------------------
+// Rules
+// ---------------------------------------------------------------------------
 
 export function saveRule(rule: ParsedRule): ParsedRule {
-  globalStore.__chainflow_rules!.unshift(rule);
+  const db = readDb();
+  // Avoid duplicates by id
+  const exists = db.rules.findIndex((r) => r.id === rule.id);
+  if (exists !== -1) {
+    db.rules[exists] = rule;
+  } else {
+    db.rules.unshift(rule);
+  }
+  writeDb(db);
   return rule;
 }
 
 export function getActiveRules(): ParsedRule[] {
-  return globalStore.__chainflow_rules!;
+  const db = readDb();
+  return db.rules;
 }
 
+export function updateRule(id: string, patch: Partial<ParsedRule & { status: string; lastCheckedAt: string | null; lastExecutedAt: string | null }>): void {
+  const db = readDb();
+  const idx = db.rules.findIndex((r) => r.id === id);
+  if (idx !== -1) {
+    db.rules[idx] = { ...db.rules[idx]!, ...patch };
+    writeDb(db);
+  }
+}
+
+export function deleteRule(id: string): void {
+  const db = readDb();
+  db.rules = db.rules.filter((r) => r.id !== id);
+  writeDb(db);
+}
+
+// ---------------------------------------------------------------------------
+// Execution Records
+// ---------------------------------------------------------------------------
+
 export function saveExecutionRecord(record: ExecutionRecord): ExecutionRecord {
-  globalStore.__chainflow_executions!.unshift(record);
+  const db = readDb();
+  db.executions.unshift(record);
+  writeDb(db);
   return record;
 }
 
 export function getExecutionRecords(): ExecutionRecord[] {
-  return globalStore.__chainflow_executions!;
+  const db = readDb();
+  return db.executions;
+}
+
+export function updateExecutionRecord(id: string, patch: Partial<ExecutionRecord>): void {
+  const db = readDb();
+  const idx = db.executions.findIndex((e) => e.id === id);
+  if (idx !== -1) {
+    db.executions[idx] = { ...db.executions[idx]!, ...patch };
+    writeDb(db);
+  }
 }

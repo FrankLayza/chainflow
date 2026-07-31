@@ -27,9 +27,16 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
             Structured Rule
           </span>
         </div>
-        <span className="text-[11px] font-mono px-1.5 py-0.5 border border-faint-linen/20 rounded text-bone-gray">
-          Parsed
-        </span>
+        <div className="flex items-center gap-2">
+          {rule.network && (
+            <span className="text-[11px] font-mono px-1.5 py-0.5 border border-faint-linen/20 rounded text-muted-cobalt bg-muted-cobalt/10">
+              {rule.network}
+            </span>
+          )}
+          <span className="text-[11px] font-mono px-1.5 py-0.5 border border-faint-linen/20 rounded text-bone-gray">
+            Parsed
+          </span>
+        </div>
       </div>
 
       {/* Plain English Explanation */}
