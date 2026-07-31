@@ -2,71 +2,75 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { PixelCanvas } from '@/components/ui/pixel-canvas';
-import { WalletIcon } from '@/components/ui/AnimatedWalletIcon';
+import { ArrowRight } from 'lucide-react';
+
+const heroContainer = {
+  hidden: {},
+  show: {
+    transition: { staggerChildren: 0.12, delayChildren: 0.15 },
+  },
+};
+
+const heroItem = {
+  hidden: { opacity: 0, y: 16 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as const } },
+};
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen w-screen bg-absolute text-warm-off-white font-sora overflow-hidden flex flex-col relative">
-      
-      {/* Background Layer */}
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-40">
-        <PixelCanvas 
-          gap={8} 
-          speed={0.03} 
-          variant="glow"
-          colors={['#8a7f7f', '#a9a0a0', '#e3e3e3']}
-        />
+    <main className="h-dvh w-screen bg-absolute text-warm-off-white font-sora overflow-hidden relative">
+      <div className="absolute inset-0 z-0">
+        <PixelCanvas gap={10} speed={0.03} variant="glow" colors={['#e3e2e0', '#6f839f', '#bd9f65']} />
       </div>
 
-      {/* Simplified Navbar for Landing */}
-      <header className="w-full px-6 py-4 z-10 flex items-center justify-between">
-        <div className="flex items-center">
-          <span className="font-outfit font-bold text-xl tracking-wider lowercase text-warm-off-white">
-            chainflow
-          </span>
-        </div>
-        <div>
-          <Link href="/app">
-            <button className="px-5 py-2 rounded-2xl bg-smoke-charcoal border border-iron-veil hover:border-pale-stone text-sm font-medium transition-all duration-150 active:scale-[0.98] cursor-pointer">
-              Launch App
-            </button>
-          </Link>
-        </div>
+      <div className="absolute inset-0 z-[1] pointer-events-none hero-vignette" />
+
+      <header className="relative z-10 w-full px-6 py-5 flex items-center justify-between">
+        <span className="font-outfit font-bold text-xl tracking-wider lowercase text-warm-off-white">
+          chainflow
+        </span>
+        <Link
+          href="/app"
+          className="px-5 py-2 rounded-2xl bg-smoke-charcoal border border-iron-veil hover:border-pale-stone text-sm font-medium transition-all duration-150 active:scale-95 cursor-pointer"
+        >
+          Launch App
+        </Link>
       </header>
 
-      {/* Hero Content */}
-      <div className="flex-1 flex flex-col items-center justify-center z-10 px-6 mt-[-8vh]">
-        <div className="max-w-4xl mx-auto text-center space-y-8">
-          
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-iron-veil bg-smoke-charcoal/50 backdrop-blur-sm text-xs font-mono text-bone-gray mb-4">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+      <motion.div
+        variants={heroContainer}
+        initial="hidden"
+        animate="show"
+        className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center px-6 pointer-events-none"
+      >
+        <motion.div variants={heroItem} className="flex flex-col items-center space-y-8 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-iron-veil bg-smoke-charcoal/50 backdrop-blur-sm text-xs font-mono text-bone-gray">
+            <span className="w-2 h-2 rounded-full bg-gold-leaf animate-pulse" />
             KeeperHub integration live
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-balance leading-tight">
-            Automate the blockchain in <span className="text-muted-cobalt italic">plain English.</span>
+          <h1 className="text-heading-lg md:text-display font-bold tracking-tight text-balance leading-tight">
+            Say it. Simulate it. <span className="text-gold-leaf italic">Send it.</span>
           </h1>
-          
+
           <p className="text-lg md:text-xl text-bone-gray max-w-2xl mx-auto font-light leading-relaxed">
-            Turn human intent into structured on-chain execution. Swap, bridge, or stake without writing a single line of code.
+            ChainFlow turns plain English into a simulated, user-confirmed on-chain transfer — executed
+            through KeeperHub with gas sponsored.
           </p>
 
-          <div className="pt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/app">
-              <button className="px-8 py-4 rounded-2xl bg-warm-off-white text-deep-ember text-base font-semibold transition-all hover:bg-pale-stone shadow-xl active:scale-[0.98]">
-                Get Started
-              </button>
+          <div className="pt-4 pointer-events-auto">
+            <Link
+              href="/app"
+              className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-warm-off-white text-deep-ember text-base font-semibold transition-all duration-150 hover:bg-pale-stone active:scale-95 cursor-pointer"
+            >
+              Launch the app
+              <ArrowRight className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-0.5" />
             </Link>
-            
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="px-8 py-4 rounded-2xl bg-smoke-charcoal border border-iron-veil text-warm-off-white text-base font-medium transition-all hover:border-pale-stone active:scale-[0.98]">
-              View Documentation
-            </a>
           </div>
-
-        </div>
-      </div>
-
+        </motion.div>
+      </motion.div>
     </main>
   );
 }
