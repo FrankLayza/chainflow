@@ -1,5 +1,5 @@
 import { generateObject } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { google } from '@ai-sdk/google';
 import { ParsedRule, ParsedRuleSchema } from '@/types/rule';
 
 /**
@@ -17,7 +17,7 @@ export async function parseNaturalLanguageRule(input: string): Promise<ParsedRul
   if (process.env.OPENAI_API_KEY) {
     try {
       const { object } = await generateObject({
-        model: openai('gpt-4o-mini'),
+        model: google('gemini-2.5-flash'),
         schema: ParsedRuleSchema,
         system: `You are an expert Web3 Automation Rule Parser for ChainFlow (powered by KeeperHub).
 Your task is to parse the user's natural language input into a structured rule object.
