@@ -33,9 +33,11 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^26.1.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "better-sqlite3": "^13.0.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "tailwindcss": "^4",
@@ -50,6 +52,9 @@
         "@emnapi/core",
         "@emnapi/runtime"
       ]
-    }
+    },
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
   }
 }

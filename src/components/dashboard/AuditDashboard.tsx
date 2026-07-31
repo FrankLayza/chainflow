@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ExecutionRecord, ParsedRule } from '@/types/rule';
-import { ShieldCheck, ExternalLink, CheckCircle2, Clock, Zap, RefreshCw } from 'lucide-react';
+import { ShieldCheck, ExternalLink, CheckCircle2, RefreshCw } from 'lucide-react';
 
 interface AuditDashboardProps {
   rules: ParsedRule[];
@@ -19,21 +19,20 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
 }) => {
   return (
     <div className="w-full h-full flex flex-col gap-5 p-6 overflow-y-auto bg-deep-ember">
-      {/* Dashboard Header */}
       <div className="flex items-center justify-between border-b border-iron-veil pb-3">
         <div>
           <h2 className="text-sm font-mono text-warm-off-white tracking-tight flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-gold-leaf" />
-            <span>Execution & Audit Dossier</span>
+            <span>Execution &amp; Audit Dossier</span>
           </h2>
-          <p className="text-[11px] text-bone-gray font-mono mt-0.5">Live verified on-chain transactions via KeeperHub</p>
+          <p className="text-xs text-bone-gray font-mono mt-0.5">Live verified on-chain transactions via KeeperHub</p>
         </div>
 
         {onRefresh && (
           <button
             onClick={onRefresh}
             disabled={isLoading}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-smoke-charcoal hover:bg-iron-veil text-bone-gray text-[11px] font-mono transition-colors border border-iron-veil"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-smoke-charcoal hover:bg-iron-veil text-bone-gray text-xs font-mono transition-colors border border-iron-veil"
           >
             <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
@@ -41,9 +40,8 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
         )}
       </div>
 
-      {/* Active Rules Grid */}
       <div>
-        <h3 className="text-caption-tracked uppercase tracking-[0.15em] text-bone-gray font-mono mb-3">
+        <h3 className="text-caption-tracked uppercase tracking-widest text-bone-gray font-mono mb-3">
           Active Rules ({rules.length})
         </h3>
         {rules.length === 0 ? (
@@ -59,24 +57,21 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-mono text-gold-leaf">{rule.ruleType}</span>
-                  <span className="flex items-center gap-1 text-[11px] font-mono text-[#28c840]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#28c840]" />
+                  <span className="flex items-center gap-1 text-xs font-mono text-green-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
                     Active
                   </span>
                 </div>
                 <p className="text-sm text-bone-gray line-clamp-2">{rule.explanation}</p>
-                <div className="text-[11px] text-bone-gray font-mono">
-                  {rule.network}
-                </div>
+                <div className="text-xs text-bone-gray font-mono">{rule.network}</div>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Execution Audit Log Table */}
       <div className="flex-1 min-h-0">
-        <h3 className="text-caption-tracked uppercase tracking-[0.15em] text-bone-gray font-mono mb-3">
+        <h3 className="text-caption-tracked uppercase tracking-widest text-bone-gray font-mono mb-3">
           Execution Log ({executions.length})
         </h3>
         <div className="w-full rounded-lg bg-smoke-charcoal border border-iron-veil overflow-hidden">
@@ -84,12 +79,11 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
             <table className="w-full text-left">
               <thead className="border-b border-iron-veil">
                 <tr>
-                  <th className="py-2.5 px-3 text-caption-tracked uppercase tracking-[0.1em] text-bone-gray font-mono">Status</th>
-                  <th className="py-2.5 px-3 text-caption-tracked uppercase tracking-[0.1em] text-bone-gray font-mono">Time</th>
-                  <th className="py-2.5 px-3 text-caption-tracked uppercase tracking-[0.1em] text-bone-gray font-mono">Amount</th>
-                  <th className="py-2.5 px-3 text-caption-tracked uppercase tracking-[0.1em] text-bone-gray font-mono">Recipient</th>
-                  <th className="py-2.5 px-3 text-caption-tracked uppercase tracking-[0.1em] text-bone-gray font-mono">Gas</th>
-                  <th className="py-2.5 px-3 text-caption-tracked uppercase tracking-[0.1em] text-bone-gray font-mono">Tx Hash</th>
+                  {['Status', 'Time', 'Amount', 'Recipient', 'Gas', 'Tx Hash'].map((col) => (
+                    <th key={col} className="py-2.5 px-3 text-caption-tracked uppercase tracking-wider text-bone-gray font-mono">
+                      {col}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-iron-veil font-mono text-sm">
@@ -103,7 +97,7 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
                   executions.map((exec) => (
                     <tr key={exec.id} className="hover:bg-iron-veil/50 transition-colors">
                       <td className="py-2.5 px-3">
-                        <span className="flex items-center gap-1.5 text-[#28c840]">
+                        <span className="flex items-center gap-1.5 text-green-400">
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           <span>{exec.status}</span>
                         </span>
