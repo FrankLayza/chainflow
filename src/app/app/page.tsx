@@ -78,7 +78,7 @@ export default function AppPage() {
   };
 
   return (
-    <main className="h-screen w-screen bg-absolute text-warm-off-white font-sora overflow-hidden flex flex-col">
+    <main className="h-screen w-screen bg-absolute text-warm-off-white font-sans overflow-hidden flex flex-col">
       <TopBar />
 
       {walletError && (

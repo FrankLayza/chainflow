@@ -25,7 +25,7 @@ export const TopBar: React.FC<TopBarProps> = ({
       <div className="w-full max-w-7xl mx-auto flex items-center justify-between">
    
         <div className="flex items-center">
-          <span className="font-outfit font-bold text-xl text-warm-off-white tracking-wider lowercase">
+          <span className="font-bold text-xl text-warm-off-white tracking-wider lowercase">
             chainflow
           </span>
         </div>

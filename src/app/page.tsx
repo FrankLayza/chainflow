@@ -3,8 +3,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { PixelCanvas } from '@/components/ui/pixel-canvas';
+import { AnimatedGradient } from '@/components/ui/animated-gradient';
 import { ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { MagneticButton } from '@/components/godui/magnetic-button';
 
 const heroContainer = {
   hidden: {},
@@ -19,24 +21,32 @@ const heroItem = {
 };
 
 export default function LandingPage() {
+  const router = useRouter();
+
   return (
-    <main className="h-dvh w-screen bg-absolute text-warm-off-white font-sora overflow-hidden relative">
+    <main className="h-dvh w-screen bg-absolute text-warm-off-white font-sans overflow-hidden relative">
       <div className="absolute inset-0 z-0">
-        <PixelCanvas gap={10} speed={0.03} variant="glow" colors={['#e3e2e0', '#6f839f', '#bd9f65']} />
+        <AnimatedGradient
+          config={{
+            preset: "Ghost",
+          }}
+        />
       </div>
 
-      <div className="absolute inset-0 z-[1] pointer-events-none hero-vignette" />
+      <div className="absolute inset-0 z-1 pointer-events-none hero-vignette" />
 
-      <header className="relative z-10 w-full px-6 py-5 flex items-center justify-between">
-        <span className="font-outfit font-bold text-xl tracking-wider lowercase text-warm-off-white">
+      <header className="relative z-10 w-full px-5 flex items-center justify-between">
+        <span className="font-bold text-base tracking-wide lowercase text-warm-off-white">
           chainflow
         </span>
-        <Link
-          href="/app"
-          className="px-5 py-2 rounded-2xl bg-smoke-charcoal border border-iron-veil hover:border-pale-stone text-sm font-medium transition duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-leaf cursor-pointer"
+        <MagneticButton
+          onClick={() => router.push('/app')}
+          strength={0.4}
+          range={24}
+          className="px-4! py-2! rounded-2xl! bg-white border border-iron-veil hover:border-pale-stone text-xs font-medium transition duration-150 active:scale-[0.96] cursor-pointer"
         >
           Launch App
-        </Link>
+        </MagneticButton>
       </header>
 
       <motion.div
@@ -46,16 +56,16 @@ export default function LandingPage() {
         className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center px-6 pointer-events-none"
       >
         <motion.div variants={heroItem} className="flex flex-col items-center space-y-8 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-iron-veil bg-smoke-charcoal/50 backdrop-blur-sm text-xs font-mono text-bone-gray">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-iron-veil bg-smoke-charcoal/50 backdrop-blur-sm text-caption-tracked font-mono text-bone-gray">
             <span className="w-2 h-2 rounded-full bg-gold-leaf animate-pulse" />
             KeeperHub integration live
           </div>
 
-          <h1 className="text-heading-lg md:text-display font-bold tracking-tight text-balance leading-tight">
+          <h1 className="text-heading-lg md:text-display font-bold tracking-display text-balance leading-display">
             Say it. Simulate it. <span className="text-gold-leaf italic">Send it.</span>
           </h1>
 
-          <p className="text-lg md:text-xl text-bone-gray max-w-2xl mx-auto font-light leading-relaxed">
+          <p className="text-lg md:text-xl text-bone-gray max-w-2xl mx-auto font-normal leading-body text-pretty">
             ChainFlow turns plain English into a simulated, user-confirmed on-chain transfer — executed
             through KeeperHub with gas sponsored.
           </p>
