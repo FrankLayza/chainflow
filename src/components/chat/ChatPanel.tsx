@@ -3,7 +3,16 @@
 import React, { useState } from 'react';
 import { ParsedRule } from '@/types/rule';
 import { ParsedRuleCard, RuleSimulation } from './ParsedRuleCard';
-import { Send, Bot, User } from 'lucide-react';
+import { Send, Bot, User, Copy, Check, ExternalLink } from 'lucide-react';
+
+export interface ExecutionReceipt {
+  executionId?: string;
+  status: string;
+  txHash?: string;
+  explorerUrl?: string;
+  gasUsed?: string;
+  viaMcp: boolean;
+}
 
 interface ChatMessage {
   id: string;
@@ -12,12 +21,13 @@ interface ChatMessage {
   parsedRule?: ParsedRule;
   simulation?: RuleSimulation | null;
   isSimulating?: boolean;
+  receipt?: ExecutionReceipt | null;
   timestamp: string;
 }
 
 interface ChatPanelProps {
   onParsePrompt: (prompt: string) => Promise<ParsedRule | null>;
-  onActivateRule: (rule: ParsedRule) => void;
+  onActivateRule: (rule: ParsedRule) => Promise<ExecutionReceipt | null>;
   onSimulateRule: (rule: ParsedRule) => Promise<RuleSimulation | null>;
   isExecuting?: boolean;
   externalPrompt?: string;
@@ -33,6 +43,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isParsing, setIsParsing] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   React.useEffect(() => {
     if (externalPrompt) {
@@ -90,6 +101,44 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     }
   };
 
+  const copyTxHash = async (txHash: string) => {
+    try {
+      await navigator.clipboard.writeText(txHash);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  const handleActivate = async (rule: ParsedRule) => {
+    try {
+      const receipt = await onActivateRule(rule);
+      if (receipt) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            sender: 'ai',
+            text: 'Execution complete. On-chain receipt:',
+            receipt,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ]);
+      }
+    } catch (error: any) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          sender: 'ai',
+          text: `Execution failed: ${error.message || 'Unknown error'}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    }
+  };
+
   return (
     <div className="w-full h-full flex flex-col bg-absolute overflow-hidden">
       {/* Chat Messages */}
@@ -124,11 +173,66 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 {msg.parsedRule && (
                   <ParsedRuleCard
                     rule={msg.parsedRule}
-                    onActivate={onActivateRule}
+                    onActivate={handleActivate}
                     isExecuting={isExecuting}
                     simulation={msg.simulation}
                     isSimulating={msg.isSimulating}
                   />
+                )}
+
+                {msg.receipt && (
+                  <div className="w-full rounded-lg bg-smoke-charcoal border border-faint-linen/20 p-4">
+                    <div className="flex items-center justify-between mb-3 border-b border-iron-veil pb-3">
+                      <span className="text-caption-tracked uppercase tracking-wider text-muted-cobalt font-mono">
+                        Execution Receipt
+                      </span>
+                      <span className="flex items-center gap-1.5 text-xs font-mono text-gold-leaf">
+                        <Check className="w-3.5 h-3.5" />
+                        {msg.receipt.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-px bg-iron-veil rounded-md overflow-hidden mb-4">
+                      <div className="bg-smoke-charcoal p-3">
+                        <span className="text-caption-tracked uppercase tracking-wider text-bone-gray font-mono block mb-0.5">Execution Path</span>
+                        <span className="text-sm font-mono text-muted-cobalt">
+                          {msg.receipt.viaMcp ? 'KeeperHub MCP' : 'KeeperHub REST'}
+                        </span>
+                      </div>
+                      <div className="bg-smoke-charcoal p-3">
+                        <span className="text-caption-tracked uppercase tracking-wider text-bone-gray font-mono block mb-0.5">Gas</span>
+                        <span className="text-sm font-mono text-gold-leaf">
+                          {msg.receipt.gasUsed || 'Sponsored by KeeperHub'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {msg.receipt.txHash && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-iron-veil border border-faint-linen/10 mb-3">
+                        <span className="text-sm font-mono text-warm-off-white flex-1 truncate">
+                          {msg.receipt.txHash.slice(0, 10)}...{msg.receipt.txHash.slice(-8)}
+                        </span>
+                        <button
+                          onClick={() => msg.receipt?.txHash && copyTxHash(msg.receipt.txHash)}
+                          className="text-muted-cobalt hover:text-warm-off-white transition-colors"
+                          aria-label="Copy transaction hash"
+                        >
+                          {copied ? <Check className="w-4 h-4 text-gold-leaf" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                        {msg.receipt.explorerUrl && (
+                          <a
+                            href={msg.receipt.explorerUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-mono text-muted-cobalt hover:text-warm-off-white transition-colors"
+                          >
+                            <span>Etherscan</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

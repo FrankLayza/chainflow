@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { TopBar } from '@/components/layout/TopBar';
-import { ChatPanel } from '@/components/chat/ChatPanel';
+import { ChatPanel, ExecutionReceipt } from '@/components/chat/ChatPanel';
 import { RuleSimulation } from '@/components/chat/ParsedRuleCard';
 
 interface WalletInfo {
@@ -66,7 +66,7 @@ export default function AppPage() {
             return data.rule;
           }}
           onSimulateRule={simulateRule}
-          onActivateRule={async (rule) => {
+          onActivateRule={async (rule): Promise<ExecutionReceipt | null> => {
             const res = await fetch('/api/execute-rule', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -76,7 +76,14 @@ export default function AppPage() {
             if (!res.ok) {
               throw new Error(data.error || 'Failed to execute rule');
             }
-            console.log('KeeperHub execution response:', data);
+            return {
+              executionId: data.executionId,
+              status: data.record?.status || data.status || 'CONFIRMED',
+              txHash: data.record?.transaction_hash || data.khResponse?.transactionHash,
+              explorerUrl: data.record?.explorer_url || data.khResponse?.transactionLink,
+              gasUsed: data.record?.gas_used,
+              viaMcp: Boolean(data.viaMcp),
+            };
           }}
         />
       </div>
