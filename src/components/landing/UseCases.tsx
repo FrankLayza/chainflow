@@ -18,7 +18,10 @@ export function UseCases() {
   const reduceMotion = useReducedMotion();
 
   return (
-    <section className="py-24 md:py-32 px-6">
+    <section
+      id="use-cases"
+      className="min-h-screen py-24 md:py-32 px-6 scroll-mt-14"
+    >
       <div className="max-w-5xl mx-auto">
         <motion.div {...headingIn(reduceMotion)} className="max-w-2xl">
           <span className="text-xs font-mono uppercase tracking-widest text-gray-400">

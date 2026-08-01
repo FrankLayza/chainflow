@@ -14,7 +14,10 @@ export function Safety() {
   const reduceMotion = useReducedMotion();
 
   return (
-    <section className="py-24 md:py-32 px-6 bg-gray-900 border-y border-white/[0.06]">
+    <section
+      id="safety"
+      className="min-h-screen py-24 md:py-32 px-6 bg-gray-900 border-y border-white/[0.06] scroll-mt-14"
+    >
       <div className="max-w-5xl mx-auto">
         <motion.div {...headingIn(reduceMotion)} className="max-w-2xl">
           <span className="text-xs font-mono uppercase tracking-widest text-gray-400">

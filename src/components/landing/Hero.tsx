@@ -1,15 +1,13 @@
 "use client";
 
 import React from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
+import { ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { AnimatedGradient } from "@/components/ui/animated-gradient";
-import { MagneticButton } from "@/components/godui/magnetic-button";
 import { TextAnimate } from "@/components/godui/text-animate";
 import { ExpandingArrowButton } from "@/components/motion/expanding-arrow-button";
-import { DitheredLogo } from "@/components/ui/dithered-logo";
-import Image from "next/image";
-import Link from "next/link";
+import { scrollToSection } from "@/lib/scroll";
 
 const heroContainer = {
   hidden: {},
@@ -29,31 +27,18 @@ const heroItem = {
 
 export function Hero() {
   const router = useRouter();
+  const reduce = useReducedMotion();
 
   return (
-    <section className="h-dvh w-full overflow-hidden relative">
+    <section
+      id="hero"
+      className="min-h-screen w-full overflow-hidden relative scroll-mt-14"
+    >
       <div className="absolute inset-0 z-0">
         <AnimatedGradient config={{ preset: "Ghost" }} />
       </div>
 
       <div className="absolute inset-0 z-1 pointer-events-none hero-vignette" />
-
-      <header className="relative z-10 w-full px-6 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <Image src="/logo.png" alt="logo" width={24} height={20} />
-          <Link href="/" className="font-semibold text-base tracking-wide lowercase text-white">
-            chainflow
-          </Link>
-        </div>
-        <MagneticButton
-          onClick={() => router.push("/app")}
-          strength={0.4}
-          range={24}
-          className="px-4! py-2! rounded-xl bg-white text-gray-950 text-xs! font-medium transition-colors duration-150 hover:bg-gray-200 active:scale-[0.97] cursor-pointer! focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 "
-        >
-          Launch App
-        </MagneticButton>
-      </header>
 
       <motion.div
         variants={heroContainer}
@@ -86,7 +71,7 @@ export function Hero() {
           variants={heroItem}
           className="mt-5 text-base md:text-lg text-gray-400 max-w-xl mx-auto font-normal text-center text-pretty"
         >
-          Describe a transfer in one sentence. ChainFlow simulates it, shows you
+          Describe a transfer in one sentence. It simulates it, shows you
           exactly what will happen, and sends nothing until you say so.
         </motion.p>
 
@@ -112,6 +97,16 @@ export function Hero() {
           No wallet to connect · Testnet only · Gas sponsored
         </motion.p>
       </motion.div>
+
+      <motion.button
+        onClick={() => scrollToSection("how-it-works")}
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 text-white/30 hover:text-white/60 transition-colors duration-150"
+        animate={reduce ? undefined : { y: [0, 6, 0] }}
+        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+        aria-label="Scroll to How It Works"
+      >
+        <ChevronDown size={20} strokeWidth={1.5} />
+      </motion.button>
     </section>
   );
 }

@@ -1,3 +1,4 @@
+import { Navbar } from "@/components/landing/Navbar";
 import { Hero } from "@/components/landing/Hero";
 import { TrustRow } from "@/components/landing/TrustRow";
 import { HowItWorks } from "@/components/landing/HowItWorks";
@@ -8,6 +9,7 @@ import { FinalCta } from "@/components/landing/FinalCta";
 export default function LandingPage() {
   return (
     <main className="w-screen bg-gray-950 text-white font-sans">
+      <Navbar />
       <Hero />
       <TrustRow />
       <HowItWorks />

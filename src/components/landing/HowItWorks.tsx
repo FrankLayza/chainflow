@@ -112,7 +112,10 @@ export function HowItWorks() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <section className="py-24 md:py-32 px-6">
+      <section
+        id="how-it-works"
+        className="min-h-screen py-24 md:py-32 px-6 scroll-mt-14"
+      >
         <div className="max-w-5xl mx-auto">
           <motion.div
             {...headingIn(reduceMotion)}
