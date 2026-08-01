@@ -8,6 +8,7 @@ import { MagneticButton } from "@/components/godui/magnetic-button";
 import { TextAnimate } from "@/components/godui/text-animate";
 import { ExpandingArrowButton } from "@/components/motion/expanding-arrow-button";
 import Image from "next/image";
+import Link from "next/link"
 
 const heroContainer = {
   hidden: {},
@@ -38,16 +39,16 @@ export function Hero() {
 
       <header className="relative z-10 w-full px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <Image src="/logo.png" alt="logo" width={36} height={30} />
-          <span className="font-semibold text-base tracking-wide lowercase text-white">
+          <Image src="/logo.png" alt="logo" width={24} height={20} />
+          <Link href="/" className="font-semibold text-base tracking-wide lowercase text-white">
             chainflow
-          </span>
+          </Link>
         </div>
         <MagneticButton
           onClick={() => router.push("/app")}
           strength={0.4}
           range={24}
-          className="px-4! py-2! rounded-xl bg-white text-gray-950 text-xs! font-medium transition-colors duration-150 hover:bg-gray-200 active:scale-[0.97] cursor-pointer focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+          className="px-4! py-2! rounded-xl bg-white text-gray-950 text-xs! font-medium transition-colors duration-150 hover:bg-gray-200 active:scale-[0.97] cursor-pointer! focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 "
         >
           Launch App
         </MagneticButton>
@@ -59,11 +60,13 @@ export function Hero() {
         animate="show"
         className="absolute inset-x-0 top-1/2 -translate-y-1/2 z-10 flex flex-col items-center px-6 pointer-events-none"
       >
+        {/* Category claim, not a brand repeat — the wordmark is already in the
+            navbar four rems above this line. */}
         <motion.span
           variants={heroItem}
           className="text-xs font-mono uppercase tracking-widest text-gray-400"
         >
-          chainflow
+          Natural-language on-chain automation
         </motion.span>
 
         <motion.div variants={{ hidden: {}, show: {} }}>
@@ -82,8 +85,8 @@ export function Hero() {
           variants={heroItem}
           className="mt-5 text-base md:text-lg text-gray-400 max-w-xl mx-auto font-normal text-center text-pretty"
         >
-          Plain English to simulated, user-confirmed on-chain transfers — gas
-          sponsored.
+          Describe a transfer in one sentence. ChainFlow simulates it, shows you
+          exactly what will happen, and sends nothing until you say so.
         </motion.p>
 
         <motion.div
@@ -98,6 +101,15 @@ export function Hero() {
             Launch the app
           </ExpandingArrowButton>
         </motion.div>
+
+        {/* Answers the three questions a Web3 visitor has before clicking, in
+            the order they think of them: my wallet, my funds, the cost. */}
+        <motion.p
+          variants={heroItem}
+          className="mt-5 text-xs text-gray-400 text-center"
+        >
+          No wallet to connect · Testnet only · Gas sponsored
+        </motion.p>
       </motion.div>
     </section>
   );

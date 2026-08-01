@@ -16,8 +16,32 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'ChainFlow — Natural Language On-Chain Automation',
-  description: 'AI-powered on-chain rule creation and execution engine powered by KeeperHub on Ethereum Sepolia.',
+  title: "ChainFlow — Natural Language On-Chain Automation",
+  description:
+    "AI-powered on-chain rule creation and execution engine powered by KeeperHub on Ethereum Sepolia.",
+  keywords: [
+    "Ethereum",
+    "Automation",
+    "AI",
+    "Smart Contracts",
+    "Web3",
+    "DeFi",
+    "KeeperHub",
+    "ChainFlow",
+  ],
+  authors: [{ name: "KeeperHub" }],
+  openGraph: {
+    title: "ChainFlow — Natural Language On-Chain Automation",
+    description: "AI-powered on-chain rule creation and execution engine.",
+    siteName: "ChainFlow",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ChainFlow — Natural Language On-Chain Automation",
+    description: "AI-powered on-chain rule creation and execution engine.",
+  },
 };
 
 export default function RootLayout({
