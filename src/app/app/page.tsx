@@ -1,137 +1,230 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { TopBar } from '@/components/layout/TopBar';
-import { ChatPanel, ExecutionReceipt } from '@/components/chat/ChatPanel';
-import { RuleSimulation } from '@/components/chat/ParsedRuleCard';
+import { ChatPanel } from '@/components/chat/ChatPanel';
 import { AuditDashboard } from '@/components/dashboard/AuditDashboard';
-import { ExecutionRecord, ParsedRule } from '@/types/rule';
+import {
+  AuditData,
+  ExecutionReceipt,
+  ParsedRule,
+  RuleSimulation,
+  WalletInfo,
+} from '@/types/rule';
+import { Async } from '@/types/async';
+import { cn } from '@/lib/utils';
 
-interface WalletInfo {
-  id: string;
-  address: string;
-  name?: string;
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
-interface AuditLogsResponse {
-  success: boolean;
-  rules: ParsedRule[];
-  executions: ExecutionRecord[];
+async function readJson(res: Response): Promise<any> {
+  return res.json().catch(() => null);
 }
 
 export default function AppPage() {
-  const [wallet, setWallet] = useState<WalletInfo | null>(null);
-  const [walletError, setWalletError] = useState<string | null>(null);
-  const [auditRules, setAuditRules] = useState<ParsedRule[]>([]);
-  const [auditExecutions, setAuditExecutions] = useState<ExecutionRecord[]>([]);
-  const [auditLoading, setAuditLoading] = useState(true);
+  const [wallet, setWallet] = useState<Async<WalletInfo>>({ kind: 'loading' });
+  const [audit, setAudit] = useState<Async<AuditData>>({ kind: 'loading' });
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [auditFetching, setAuditFetching] = useState(true);
   const [auditRefreshKey, setAuditRefreshKey] = useState(0);
+  const [mobileTab, setMobileTab] = useState<'chat' | 'activity'>('chat');
+  const [unseenActivity, setUnseenActivity] = useState(false);
 
   useEffect(() => {
-    fetch('/api/wallet')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.wallet) {
-          setWallet(data.wallet);
-        } else {
-          setWalletError(data.error || 'Wallet integration not found');
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch('/api/wallet');
+        const data = await readJson(res);
+        if (!res.ok || !data?.success || !data.wallet) {
+          throw new Error(data?.error || `Wallet service returned ${res.status}`);
         }
-      })
-      .catch(() => setWalletError('Failed to reach KeeperHub wallet check'));
+        if (!cancelled) setWallet({ kind: 'ready', data: data.wallet });
+      } catch (error) {
+        if (!cancelled) {
+          setWallet({
+            kind: 'error',
+            message: errorMessage(error, 'Failed to reach KeeperHub wallet check'),
+          });
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-    setAuditLoading(true);
-    fetch('/api/audit-logs')
-      .then((res) => res.json())
-      .then((data: AuditLogsResponse) => {
-        if (cancelled) return;
-        setAuditRules(data.rules || []);
-        setAuditExecutions(data.executions || []);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setAuditRules([]);
-          setAuditExecutions([]);
+    // Keep already-loaded rows mounted across a refresh so the panel spins its
+    // icon instead of flashing skeletons over data the user is reading.
+    setAudit((prev) => (prev.kind === 'ready' ? prev : { kind: 'loading' }));
+    setAuditFetching(true);
+
+    (async () => {
+      try {
+        const res = await fetch('/api/audit-logs');
+        const data = await readJson(res);
+        // Without this check an HTTP 500 resolves with {error}, `rules` reads
+        // undefined, and the panel renders "no executions yet" for what is
+        // actually a server failure.
+        if (!res.ok || !data?.success) {
+          throw new Error(data?.error || `Audit service returned ${res.status}`);
         }
-      })
-      .finally(() => {
-        if (!cancelled) setAuditLoading(false);
-      });
+        if (!cancelled) {
+          setAudit({
+            kind: 'ready',
+            data: { rules: data.rules ?? [], executions: data.executions ?? [] },
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setAudit({
+            kind: 'error',
+            message: errorMessage(error, 'Could not reach the execution log'),
+          });
+        }
+      } finally {
+        if (!cancelled) setAuditFetching(false);
+      }
+    })();
+
     return () => {
       cancelled = true;
     };
   }, [auditRefreshKey]);
 
-  const simulateRule = async (rule: any): Promise<RuleSimulation | null> => {
-    const res = await fetch('/api/simulate-rule', {
+  const parsePrompt = useCallback(async (prompt: string): Promise<ParsedRule | null> => {
+    const res = await fetch('/api/parse-rule', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rule }),
+      body: JSON.stringify({ prompt }),
     });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Failed to simulate rule');
-    }
-    return data.simulation ?? null;
-  };
+    const data = await readJson(res);
+    if (!res.ok) throw new Error(data?.error || 'Failed to parse rule');
+    return data?.rule ?? null;
+  }, []);
+
+  const simulateRule = useCallback(
+    async (rule: ParsedRule): Promise<RuleSimulation | null> => {
+      const res = await fetch('/api/simulate-rule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rule }),
+      });
+      const data = await readJson(res);
+      if (!res.ok) throw new Error(data?.error || 'Failed to simulate rule');
+      return data?.simulation ?? null;
+    },
+    [],
+  );
+
+  const activateRule = useCallback(
+    async (rule: ParsedRule): Promise<ExecutionReceipt | null> => {
+      // The route mints a fresh idempotency key per request, so KeeperHub will
+      // not dedupe a double-submit. This guard is the only thing preventing a
+      // second broadcast.
+      if (isExecuting) return null;
+      setIsExecuting(true);
+      try {
+        const res = await fetch('/api/execute-rule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rule }),
+        });
+        const data = await readJson(res);
+        if (!res.ok) throw new Error(data?.error || 'Failed to execute rule');
+
+        setAuditRefreshKey((key) => key + 1);
+        setUnseenActivity(true);
+
+        return {
+          executionId: data?.executionId ?? undefined,
+          // No 'CONFIRMED' fallback: an unknown status must stay unknown so the
+          // receipt can render it honestly rather than claim success.
+          status: data?.record?.status || data?.status || 'UNKNOWN',
+          txHash: data?.record?.transaction_hash || data?.khResponse?.transactionHash,
+          explorerUrl: data?.record?.explorer_url || data?.khResponse?.transactionLink,
+          gasUsed: data?.record?.gas_used,
+          viaMcp: Boolean(data?.viaMcp),
+        };
+      } finally {
+        setIsExecuting(false);
+      }
+    },
+    [isExecuting],
+  );
+
+  const refreshAudit = useCallback(() => setAuditRefreshKey((key) => key + 1), []);
+
+  const executionCount = audit.kind === 'ready' ? audit.data.executions.length : 0;
 
   return (
-    <main className="h-screen w-screen bg-absolute text-warm-off-white font-sans overflow-hidden flex flex-col">
-      <TopBar />
+    <main className="h-dvh w-screen bg-gray-950 text-white font-sans overflow-hidden flex flex-col">
+      <TopBar wallet={wallet} />
 
-      {walletError && (
-        <div className="px-6 py-2 bg-danger/10 border-b border-danger/30 text-danger text-xs font-mono">
-          Wallet unavailable: {walletError}
-        </div>
-      )}
+      <div className="lg:hidden flex gap-1 p-1 mx-4 mt-3 bg-gray-900 rounded-xl border border-white/[0.06]">
+        {(['chat', 'activity'] as const).map((tab) => {
+          const isActive = mobileTab === tab;
+          return (
+            <button
+              key={tab}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => {
+                setMobileTab(tab);
+                if (tab === 'activity') setUnseenActivity(false);
+              }}
+              className={cn(
+                'flex-1 rounded-[10px] py-2 text-[13px] font-medium cursor-pointer',
+                'transition-[background-color,color] duration-150 ease-out',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50',
+                'focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950',
+                isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white',
+              )}
+            >
+              <span className="inline-flex items-center justify-center gap-1.5">
+                {tab === 'chat' ? 'Chat' : 'Activity'}
+                {tab === 'activity' && executionCount > 0 && (
+                  <span className="font-mono text-xs text-gray-500">{executionCount}</span>
+                )}
+                {tab === 'activity' && unseenActivity && !isActive && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                )}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
-      <div className="flex-1 w-full bg-absolute overflow-hidden flex">
-        <div className="flex-1 min-w-0">
+      <div className="flex-1 min-h-0 w-full flex">
+        <div
+          className={cn(
+            'flex-1 min-w-0',
+            mobileTab !== 'chat' && 'hidden lg:block',
+          )}
+        >
           <ChatPanel
-            onParsePrompt={async (prompt) => {
-              const res = await fetch('/api/parse-rule', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt }),
-              });
-              const data = await res.json();
-              if (!res.ok) {
-                throw new Error(data.error || 'Failed to parse rule');
-              }
-              return data.rule;
-            }}
+            onParsePrompt={parsePrompt}
             onSimulateRule={simulateRule}
-            onActivateRule={async (rule): Promise<ExecutionReceipt | null> => {
-              const res = await fetch('/api/execute-rule', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ rule }),
-              });
-              const data = await res.json();
-              if (!res.ok) {
-                throw new Error(data.error || 'Failed to execute rule');
-              }
-              setAuditRefreshKey((key) => key + 1);
-              return {
-                executionId: data.executionId,
-                status: data.record?.status || data.status || 'CONFIRMED',
-                txHash: data.record?.transaction_hash || data.khResponse?.transactionHash,
-                explorerUrl: data.record?.explorer_url || data.khResponse?.transactionLink,
-                gasUsed: data.record?.gas_used,
-                viaMcp: Boolean(data.viaMcp),
-              };
-            }}
+            onActivateRule={activateRule}
+            isExecuting={isExecuting}
           />
         </div>
 
-        <aside className="hidden lg:block w-[420px] shrink-0 border-l border-iron-veil">
+        <aside
+          className={cn(
+            'shrink-0 lg:w-[420px] lg:border-l lg:border-white/[0.06]',
+            mobileTab !== 'activity' ? 'hidden lg:block' : 'flex-1 min-w-0',
+          )}
+        >
           <AuditDashboard
-            rules={auditRules}
-            executions={auditExecutions}
-            isLoading={auditLoading}
-            onRefresh={() => setAuditRefreshKey((key) => key + 1)}
+            audit={audit}
+            onRefresh={refreshAudit}
+            isRefreshing={auditFetching}
           />
         </aside>
       </div>

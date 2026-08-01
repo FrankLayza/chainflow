@@ -118,7 +118,10 @@ export async function POST(request: Request) {
       }
     }
 
-    const finalStatus: RecordStatus = 'CONFIRMED';
+    // A transaction hash is the only evidence that this reached the chain.
+    // Without one the execution is submitted, not confirmed — claiming
+    // CONFIRMED here would persist a row no explorer link can back up.
+    const finalStatus: RecordStatus = txHash ? 'CONFIRMED' : 'PENDING';
 
     const record = createAuditRecord({
       id: executionId || 'ext-' + Date.now(),
@@ -130,7 +133,7 @@ export async function POST(request: Request) {
       status: finalStatus,
       transaction_hash: txHash || undefined,
       explorer_url: explorerUrl || (txHash ? `https://sepolia.etherscan.io/tx/${txHash}` : undefined),
-      gas_used: gasUsed ? `${gasUsed} units` : '77,119 units',
+      gas_used: gasUsed ? `${gasUsed} units` : undefined,
       sponsored: true,
       recipient_address: targetAddress,
       amount: transferAmount,

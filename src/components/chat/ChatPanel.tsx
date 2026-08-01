@@ -1,296 +1,381 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { ParsedRule } from '@/types/rule';
-import { ParsedRuleCard, RuleSimulation } from './ParsedRuleCard';
-import { PRESET_RULES } from '@/lib/ai/presets';
-import { Send, Bot, User, Copy, Check, ExternalLink } from 'lucide-react';
+import React from "react";
+import { AlertTriangle, Loader2, Send } from "lucide-react";
+import { ParsedRuleCard } from "./ParsedRuleCard";
+import { ExecutionReceiptCard } from "./ExecutionReceiptCard";
+import { ChatEmptyState } from "./ChatEmptyState";
+import { FieldGrid } from "@/components/ui/FieldGrid";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { cn } from "@/lib/utils";
+import type {
+  ExecState,
+  ExecutionReceipt,
+  ParsedRule,
+  RuleSimulation,
+  SimState,
+} from "@/types/rule";
 
-export interface ExecutionReceipt {
-  executionId?: string;
-  status: string;
-  txHash?: string;
-  explorerUrl?: string;
-  gasUsed?: string;
-  viaMcp: boolean;
-}
-
-interface ChatMessage {
-  id: string;
-  sender: 'user' | 'ai';
-  text: string;
-  parsedRule?: ParsedRule;
-  simulation?: RuleSimulation | null;
-  isSimulating?: boolean;
-  receipt?: ExecutionReceipt | null;
-  timestamp: string;
-}
+type Message =
+  | { id: string; kind: "user"; text: string; at: string }
+  | { id: string; kind: "parseError"; message: string; prompt: string; at: string }
+  | { id: string; kind: "parsing"; at: string }
+  | {
+      id: string;
+      kind: "rule";
+      rule: ParsedRule;
+      sim: SimState;
+      exec: ExecState;
+      execError?: string;
+      at: string;
+    }
+  | { id: string; kind: "receipt"; receipt: ExecutionReceipt; at: string };
 
 interface ChatPanelProps {
   onParsePrompt: (prompt: string) => Promise<ParsedRule | null>;
-  onActivateRule: (rule: ParsedRule) => Promise<ExecutionReceipt | null>;
   onSimulateRule: (rule: ParsedRule) => Promise<RuleSimulation | null>;
+  onActivateRule: (rule: ParsedRule) => Promise<ExecutionReceipt | null>;
   isExecuting?: boolean;
-  externalPrompt?: string;
 }
+
+const now = () =>
+  new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+
+const errText = (e: unknown, fallback: string) =>
+  e instanceof Error && e.message ? e.message : fallback;
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({
   onParsePrompt,
-  onActivateRule,
   onSimulateRule,
+  onActivateRule,
   isExecuting,
-  externalPrompt,
 }) => {
-  const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isParsing, setIsParsing] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [input, setInput] = React.useState("");
+  const [messages, setMessages] = React.useState<Message[]>([]);
+  const [isParsing, setIsParsing] = React.useState(false);
+  const endRef = React.useRef<HTMLDivElement>(null);
 
+  // Without this the receipt — the artifact the whole product exists to produce
+  // — can append below the fold and never be seen.
   React.useEffect(() => {
-    if (externalPrompt) {
-      handleSend(externalPrompt);
-    }
-  }, [externalPrompt]);
+    if (messages.length === 0) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    endRef.current?.scrollIntoView({
+      behavior: reduce ? "auto" : "smooth",
+      block: "end",
+    });
+  }, [messages]);
 
-  const handleSend = async (customText?: string) => {
-    const textToSend = customText || input;
-    if (!textToSend.trim() || isParsing) return;
+  const patch = React.useCallback((id: string, next: Partial<Message>) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id ? ({ ...m, ...next } as Message) : m)),
+    );
+  }, []);
 
-    const userMsg: ChatMessage = {
-      id: crypto.randomUUID(),
-      sender: 'user',
-      text: textToSend,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
+  const simulate = React.useCallback(
+    async (id: string, rule: ParsedRule) => {
+      patch(id, { sim: { phase: "simulating" } });
+      try {
+        const simulation = await onSimulateRule(rule);
+        patch(id, {
+          sim: simulation
+            ? { phase: "done", simulation }
+            : { phase: "error", message: "Simulator returned no result." },
+        });
+      } catch (e) {
+        // Reported as a simulation failure, not a parse failure — and the
+        // spinner always resolves, because `sim` leaves the simulating phase on
+        // every path.
+        patch(id, {
+          sim: { phase: "error", message: errText(e, "Simulation failed") },
+        });
+      }
+    },
+    [onSimulateRule, patch],
+  );
 
-    setMessages((prev) => [...prev, userMsg]);
-    if (!customText) setInput('');
-    setIsParsing(true);
+  const send = React.useCallback(
+    async (text: string) => {
+      const prompt = text.trim();
+      if (!prompt || isParsing || isExecuting) return;
 
-    try {
-      const parsedRule = await onParsePrompt(textToSend);
-      if (parsedRule) {
-        const aiMsg: ChatMessage = {
-          id: crypto.randomUUID(),
-          sender: 'ai',
-          text: 'Here is the structured rule parsed from your request:',
-          parsedRule,
-          isSimulating: true,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
-        setMessages((prev) => [...prev, aiMsg]);
+      setMessages((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), kind: "user", text: prompt, at: now() },
+      ]);
+      setInput("");
+      setIsParsing(true);
 
-        const simulation = await onSimulateRule(parsedRule);
+      const parsingId = crypto.randomUUID();
+      setMessages((prev) => [...prev, { id: parsingId, kind: "parsing", at: now() }]);
+
+      let rule: ParsedRule | null = null;
+      try {
+        rule = await onParsePrompt(prompt);
+      } catch (e) {
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === aiMsg.id ? { ...m, simulation, isSimulating: false } : m
-          )
+            m.id === parsingId
+              ? {
+                  id: m.id,
+                  kind: "parseError",
+                  message: errText(e, "Could not parse that rule"),
+                  prompt,
+                  at: m.at,
+                }
+              : m,
+          ),
         );
+        setIsParsing(false);
+        return;
+      } finally {
+        setIsParsing(false);
       }
-    } catch (error: any) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          sender: 'ai',
-          text: `Could not parse rule: ${error.message || 'Please try rephrasing.'}`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
-    } finally {
-      setIsParsing(false);
-    }
-  };
 
-  const copyTxHash = async (txHash: string) => {
-    try {
-      await navigator.clipboard.writeText(txHash);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(false);
-    }
-  };
+      if (!rule) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === parsingId
+              ? {
+                  id: m.id,
+                  kind: "parseError",
+                  message: "No rule was returned for that prompt.",
+                  prompt,
+                  at: m.at,
+                }
+              : m,
+          ),
+        );
+        return;
+      }
 
-  const handleActivate = async (rule: ParsedRule) => {
-    try {
-      const receipt = await onActivateRule(rule);
-      if (receipt) {
+      const parsed = rule;
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === parsingId
+            ? {
+                id: m.id,
+                kind: "rule",
+                rule: parsed,
+                sim: { phase: "simulating" },
+                exec: "idle",
+                at: m.at,
+              }
+            : m,
+        ),
+      );
+
+      await simulate(parsingId, parsed);
+    },
+    [isParsing, isExecuting, onParsePrompt, simulate],
+  );
+
+  const broadcast = React.useCallback(
+    async (id: string, rule: ParsedRule) => {
+      patch(id, { exec: "executing" });
+      try {
+        const receipt = await onActivateRule(rule);
+        if (!receipt) {
+          patch(id, { exec: "failed", execError: "Execution was already in flight." });
+          return;
+        }
+        patch(id, { exec: "done" });
         setMessages((prev) => [
           ...prev,
-          {
-            id: crypto.randomUUID(),
-            sender: 'ai',
-            text: 'Execution complete. On-chain receipt:',
-            receipt,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          },
+          { id: crypto.randomUUID(), kind: "receipt", receipt, at: now() },
         ]);
+      } catch (e) {
+        patch(id, { exec: "failed", execError: errText(e, "Execution failed") });
       }
-    } catch (error: any) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          sender: 'ai',
-          text: `Execution failed: ${error.message || 'Unknown error'}`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
-    }
-  };
+    },
+    [onActivateRule, patch],
+  );
 
   return (
-    <div className="w-full h-full flex flex-col bg-absolute overflow-hidden">
-      {/* Chat Messages */}
+    <div className="w-full h-full flex flex-col bg-gray-950 overflow-hidden">
       <div className="flex-1 overflow-y-auto">
-        <div className="w-full max-w-7xl mx-auto px-6 py-6 space-y-6">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex gap-4 ${msg.sender === 'user' ? 'ml-auto flex-row-reverse' : ''}`}
-            >
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border ${
-                  msg.sender === 'user'
-                    ? 'bg-smoke-charcoal border-iron-veil text-warm-off-white'
-                    : 'bg-iron-veil border-faint-linen/20 text-muted-cobalt'
-                }`}
-              >
-                {msg.sender === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-              </div>
-
-              <div className="space-y-3 max-w-[80%]">
-                <div
-                  className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                    msg.sender === 'user'
-                      ? 'bg-smoke-charcoal text-warm-off-white border border-iron-veil'
-                      : 'bg-iron-veil/50 text-warm-off-white border border-faint-linen/10'
-                  }`}
-                >
-                  {msg.text}
-                </div>
-
-                {msg.parsedRule && (
-                  <ParsedRuleCard
-                    rule={msg.parsedRule}
-                    onActivate={handleActivate}
-                    isExecuting={isExecuting}
-                    simulation={msg.simulation}
-                    isSimulating={msg.isSimulating}
-                  />
-                )}
-
-                {msg.receipt && (
-                  <div className="w-full rounded-lg bg-smoke-charcoal border border-faint-linen/20 p-4">
-                    <div className="flex items-center justify-between mb-3 border-b border-iron-veil pb-3">
-                      <span className="text-caption-tracked uppercase tracking-wider text-muted-cobalt font-mono">
-                        Execution Receipt
-                      </span>
-                      <span className="flex items-center gap-1.5 text-xs font-mono text-gold-leaf">
-                        <Check className="w-3.5 h-3.5" />
-                        {msg.receipt.status}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-px bg-iron-veil rounded-md overflow-hidden mb-4">
-                      <div className="bg-smoke-charcoal p-3">
-                        <span className="text-caption-tracked uppercase tracking-wider text-bone-gray font-mono block mb-0.5">Execution Path</span>
-                        <span className="text-sm font-mono text-muted-cobalt">
-                          {msg.receipt.viaMcp ? 'KeeperHub MCP' : 'KeeperHub REST'}
-                        </span>
-                      </div>
-                      <div className="bg-smoke-charcoal p-3">
-                        <span className="text-caption-tracked uppercase tracking-wider text-bone-gray font-mono block mb-0.5">Gas</span>
-                        <span className="text-sm font-mono text-gold-leaf">
-                          {msg.receipt.gasUsed || 'Sponsored by KeeperHub'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {msg.receipt.txHash && (
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-iron-veil border border-faint-linen/10 mb-3">
-                        <span className="text-sm font-mono text-warm-off-white flex-1 truncate">
-                          {msg.receipt.txHash.slice(0, 10)}...{msg.receipt.txHash.slice(-8)}
-                        </span>
-                        <button
-                          onClick={() => msg.receipt?.txHash && copyTxHash(msg.receipt.txHash)}
-                          className="text-muted-cobalt hover:text-warm-off-white transition-colors"
-                          aria-label="Copy transaction hash"
-                        >
-                          {copied ? <Check className="w-4 h-4 text-gold-leaf" /> : <Copy className="w-4 h-4" />}
-                        </button>
-                        {msg.receipt.explorerUrl && (
-                          <a
-                            href={msg.receipt.explorerUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-mono text-muted-cobalt hover:text-warm-off-white transition-colors"
-                          >
-                            <span>Etherscan</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-
-          {isParsing && (
-            <div className="flex gap-4 items-center">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 border bg-iron-veil border-faint-linen/20 text-muted-cobalt">
-                <Bot className="w-4 h-4" />
-              </div>
-              <div className="px-4 py-3 rounded-2xl text-sm leading-relaxed bg-iron-veil/50 text-muted-cobalt border border-faint-linen/10">
-                <span className="animate-pulse">Parsing rule parameters...</span>
-              </div>
+        <div className="w-full max-w-3xl mx-auto px-6 py-6">
+          {messages.length === 0 ? (
+            <ChatEmptyState onPick={send} />
+          ) : (
+            <div className="space-y-5">
+              {messages.map((msg) => (
+                <MessageRow
+                  key={msg.id}
+                  msg={msg}
+                  globallyLocked={Boolean(isExecuting)}
+                  onConfirm={() => patch(msg.id, { exec: "confirming" })}
+                  onCancelConfirm={() => patch(msg.id, { exec: "idle" })}
+                  onBroadcast={() =>
+                    msg.kind === "rule" && broadcast(msg.id, msg.rule)
+                  }
+                  onRetrySimulate={() =>
+                    msg.kind === "rule" && simulate(msg.id, msg.rule)
+                  }
+                  onEditPrompt={(p) => setInput(p)}
+                />
+              ))}
+              <div ref={endRef} />
             </div>
           )}
         </div>
       </div>
 
-      <div className="w-full bg-absolute border-t border-iron-veil/60">
+      <div className="w-full shrink-0 border-t border-white/[0.06]">
         <div className="w-full max-w-3xl mx-auto px-6 py-4">
-          <div className="flex flex-wrap justify-center gap-2 mb-4">
-            {PRESET_RULES.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => setInput(preset.promptText)}
-                className="text-xs px-3 py-1.5 rounded-full border border-iron-veil hover:border-pale-stone text-bone-gray hover:text-warm-off-white transition-colors cursor-pointer"
-              >
-                {preset.promptText}
-              </button>
-            ))}
-          </div>
-
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              handleSend();
+              send(input);
             }}
-            className="flex items-center gap-3 bg-smoke-charcoal border border-iron-veil focus-within:border-pale-stone rounded-2xl p-2 transition-all"
+            className="flex items-center gap-3"
           >
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Type an on-chain automation rule in plain English..."
+              placeholder="Describe a transfer in plain English…"
               disabled={isParsing || isExecuting}
-              className="flex-1 bg-transparent px-3 py-1 text-sm text-warm-off-white placeholder-bone-gray/50 focus:outline-none disabled:opacity-50"
+              aria-label="Describe a transfer"
+              className={cn(
+                "flex-1 min-w-0 bg-gray-900 border border-white/[0.06] rounded-xl px-4 py-3",
+                "text-sm text-white placeholder:text-gray-500",
+                "focus:border-violet-500/40 focus-visible:outline-none",
+                "transition-[border-color] duration-150 ease-out",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+              )}
             />
             <button
               type="submit"
               disabled={!input.trim() || isParsing || isExecuting}
-              className="px-4 py-2 rounded-2xl bg-warm-off-white text-deep-ember text-sm font-medium transition-all duration-150 hover:bg-pale-stone disabled:opacity-30 cursor-pointer"
+              aria-label="Send"
+              className={cn(
+                "shrink-0 inline-flex items-center justify-center px-4 py-3 rounded-xl cursor-pointer",
+                "bg-violet-500 text-white",
+                "hover:bg-violet-600",
+                "transition-[background-color,transform] duration-150 ease-out active:scale-[0.97]",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50",
+                "focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950",
+                "disabled:opacity-40 disabled:cursor-not-allowed",
+              )}
             >
-              <Send className="w-4 h-4" />
+              {isParsing ? (
+                <Loader2 className="w-4 h-4 motion-safe:animate-spin" strokeWidth={2} />
+              ) : (
+                <Send className="w-4 h-4" strokeWidth={2} />
+              )}
             </button>
           </form>
+          <p className="mt-2 text-[11px] text-gray-500">
+            Nothing broadcasts until you confirm.
+          </p>
         </div>
       </div>
     </div>
   );
 };
+
+function MessageRow({
+  msg,
+  globallyLocked,
+  onConfirm,
+  onCancelConfirm,
+  onBroadcast,
+  onRetrySimulate,
+  onEditPrompt,
+}: {
+  msg: Message;
+  globallyLocked: boolean;
+  onConfirm: () => void;
+  onCancelConfirm: () => void;
+  onBroadcast: () => void;
+  onRetrySimulate: () => void;
+  onEditPrompt: (prompt: string) => void;
+}) {
+  if (msg.kind === "user") {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[80%] bg-gray-800 border border-white/[0.06] rounded-2xl px-4 py-3">
+          <p className="text-sm text-white leading-relaxed">{msg.text}</p>
+          <span className="mt-1 block font-mono text-[11px] text-gray-500 text-right">
+            {msg.at}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (msg.kind === "parsing") {
+    return (
+      <div className="w-full bg-gray-800 rounded-2xl p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)]">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <span className="text-[11px] uppercase tracking-[0.04em] text-gray-500 font-mono">
+            Parsed rule
+          </span>
+          <StatusBadge tone="live" label="Parsing" pulse />
+        </div>
+        <FieldGrid skeleton />
+      </div>
+    );
+  }
+
+  if (msg.kind === "parseError") {
+    return (
+      <div className="w-full rounded-2xl bg-danger/10 border border-danger/30 p-4">
+        <div className="flex items-start gap-2.5">
+          <AlertTriangle
+            className="w-4 h-4 text-danger shrink-0 mt-0.5"
+            strokeWidth={2}
+            aria-hidden
+          />
+          <div className="min-w-0 space-y-1">
+            <p className="text-sm font-medium text-danger">
+              Couldn&apos;t read that as a rule
+            </p>
+            <p className="font-mono text-[13px] text-gray-400 break-words">
+              {msg.message}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => onEditPrompt(msg.prompt)}
+          className={cn(
+            "mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl cursor-pointer",
+            "border border-white/[0.08] text-gray-400 text-sm",
+            "hover:text-white hover:border-white/[0.15]",
+            "transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50",
+            "focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950",
+          )}
+        >
+          Edit prompt
+        </button>
+      </div>
+    );
+  }
+
+  if (msg.kind === "rule") {
+    return (
+      <div className="space-y-2">
+        <ParsedRuleCard
+          rule={msg.rule}
+          sim={msg.sim}
+          exec={msg.exec}
+          onConfirm={onConfirm}
+          onCancelConfirm={onCancelConfirm}
+          onBroadcast={onBroadcast}
+          onRetrySimulate={onRetrySimulate}
+          globallyLocked={globallyLocked}
+        />
+        {msg.exec === "failed" && msg.execError && (
+          <p className="px-1 font-mono text-[13px] text-danger break-words">
+            {msg.execError}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return <ExecutionReceiptCard receipt={msg.receipt} />;
+}

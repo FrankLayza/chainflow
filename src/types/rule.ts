@@ -37,3 +37,51 @@ export interface ExecutionRecord {
   amount: string;
   chainId: number;
 }
+
+export interface RuleSimulation {
+  status: string;
+  passed: boolean;
+  wouldRevert: boolean;
+  gasEstimate?: number | null;
+  gasEstimateUsd?: number | null;
+  from?: string | null;
+  to?: string | null;
+  amount: string;
+  sponsored: boolean;
+}
+
+export interface ExecutionReceipt {
+  executionId?: string;
+  status: string;
+  txHash?: string;
+  explorerUrl?: string;
+  gasUsed?: string;
+  viaMcp: boolean;
+}
+
+export interface WalletInfo {
+  id: string;
+  address?: string;
+  name?: string;
+}
+
+export interface AuditData {
+  rules: ParsedRule[];
+  executions: ExecutionRecord[];
+}
+
+/**
+ * A boolean `isSimulating` had no value for "not simulating, but no result
+ * either", which is what let a failed simulation leave a spinner running
+ * forever. The union closes that hole.
+ */
+export type SimState =
+  | { phase: 'simulating' }
+  | { phase: 'done'; simulation: RuleSimulation }
+  | { phase: 'error'; message: string };
+
+/**
+ * Tracked per message, not per panel: a global flag flips back to idle when the
+ * request settles and re-arms the button on a card that has already broadcast.
+ */
+export type ExecState = 'idle' | 'confirming' | 'executing' | 'done' | 'failed';

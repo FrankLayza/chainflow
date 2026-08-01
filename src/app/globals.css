@@ -5,63 +5,90 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  /* Colors */
-  --color-warm-off-white: #faf9f6;
-  --color-bone-gray: #a4a4a1;
-  --color-pale-stone: #b4b4b2;
-  --color-faint-linen: #e3e2e0;
-  --color-smoke-charcoal: #2f2f2f;
-  --color-iron-veil: #383838;
-  --color-slate-hearth: #40403f;
-  --color-deep-ember: #121212;
-  --color-smoked-onyx: #1e1e1d;
-  --color-absolute: #000000;
-  --color-ink-black: #080808;
-  --color-gold-leaf: #bd9f65;
-  --color-muted-cobalt: #889bb6;
-  --color-success: #7fd493;
+  /* Neutrals — zinc scale */
+  --color-white: #f4f4f5;
+  --color-gray-400: #a1a1aa;
+  --color-gray-500: #71717a;
+  --color-gray-600: #52525b;
+  --color-gray-700: #3f3f46;
+  --color-gray-800: #27272a;
+  --color-gray-900: #18181b;
+  --color-gray-950: #09090b;
+
+  /* Accent — electric violet */
+  --color-violet-400: #a78bfa;
+  --color-violet-500: #8b5cf6;
+  --color-violet-600: #7c3aed;
+  --color-violet-900: #4c1d95;
+
+  /* Semantic states */
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
   --color-danger: #f87171;
+
+  /* Legacy aliases (existing components reference these) */
+  --color-warm-off-white: #f4f4f5;
+  --color-bone-gray: #a1a1aa;
+  --color-pale-stone: #a1a1aa;
+  --color-faint-linen: #52525b;
+  --color-smoke-charcoal: #27272a;
+  --color-iron-veil: #3f3f46;
+  --color-slate-hearth: #52525b;
+  --color-deep-ember: #18181b;
+  --color-smoked-onyx: #18181b;
+  --color-absolute: #09090b;
+  --color-ink-black: #09090b;
+  --color-gold-leaf: #a78bfa;
+  --color-muted-cobalt: #a78bfa;
 
   /* Typography — Scale */
   --text-caption-tracked: 11px;
-  --leading-caption-tracked: 1.2;
-  --tracking-caption-tracked: 2.2px;
-  --text-body-sm: 14px;
-  --leading-body-sm: 1.38;
-  --tracking-body-sm: 0.14px;
-  --text-body: 16px;
-  --leading-body: 1.38;
-  --tracking-body: 0.16px;
-  --text-subheading: 20px;
-  --leading-subheading: 1.3;
-  --tracking-subheading: -0.2px;
-  --text-heading-sm: 24px;
-  --leading-heading-sm: 1.2;
-  --tracking-heading-sm: -0.48px;
-  --text-heading: 32px;
-  --leading-heading: 1.19;
-  --tracking-heading: -0.64px;
-  --text-heading-lg: 48px;
+  --leading-caption-tracked: 1.3;
+  --tracking-caption-tracked: 0.04em;
+  --text-body-sm: 13px;
+  --leading-body-sm: 1.5;
+  --tracking-body-sm: 0;
+  --text-body: 15px;
+  --leading-body: 1.6;
+  --tracking-body: 0;
+  --text-subheading: 18px;
+  --leading-subheading: 1.4;
+  --tracking-subheading: -0.01em;
+  --text-heading-sm: 22px;
+  --leading-heading-sm: 1.3;
+  --tracking-heading-sm: -0.02em;
+  --text-heading: 28px;
+  --leading-heading: 1.2;
+  --tracking-heading: -0.02em;
+  --text-heading-lg: 40px;
   --leading-heading-lg: 1.1;
-  --tracking-heading-lg: -1.44px;
-  --text-display: 68px;
+  --tracking-heading-lg: -0.03em;
+  --text-display: 72px;
   --leading-display: 1;
-  --tracking-display: -2.04px;
+  --tracking-display: -0.035em;
 
   /* Border Radius */
-  --radius-md: 4px;
-  --radius-lg: 8px;
-  --radius-xl: 14px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-2xl: 20px;
-  --radius-full: 50px;
-  --radius-full-2: 110px;
+  --radius-full: 9999px;
 }
 
 body {
-  background: #000000;
-  color: var(--color-warm-off-white);
-  overflow: hidden;
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #09090b;
+  color: var(--color-white);
+  overflow-x: hidden;
+  font-family:
+    var(--font-geist-sans),
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
 }
 
 /* Glassmorphic Panel Utility */
@@ -73,7 +100,12 @@ body {
 
 /* Hero legibility vignette — dark center for text, glowing edges for the pixel grid */
 @utility hero-vignette {
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.3) 45%, rgba(0, 0, 0, 0) 78%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(0, 0, 0, 0.3) 45%,
+    rgba(0, 0, 0, 0) 78%
+  );
 }
 
 /* Custom Scrollbars */
