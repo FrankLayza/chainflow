@@ -7,6 +7,7 @@ import { AnimatedGradient } from "@/components/ui/animated-gradient";
 import { MagneticButton } from "@/components/godui/magnetic-button";
 import { TextAnimate } from "@/components/godui/text-animate";
 import { ExpandingArrowButton } from "@/components/motion/expanding-arrow-button";
+import Image from "next/image";
 
 const heroContainer = {
   hidden: {},
@@ -36,9 +37,12 @@ export function Hero() {
       <div className="absolute inset-0 z-1 pointer-events-none hero-vignette" />
 
       <header className="relative z-10 w-full px-6 h-14 flex items-center justify-between">
-        <span className="font-semibold text-base tracking-wide lowercase text-white">
-          chainflow
-        </span>
+        <div className="flex items-center gap-1">
+          <Image src="/logo.png" alt="logo" width={36} height={30} />
+          <span className="font-semibold text-base tracking-wide lowercase text-white">
+            chainflow
+          </span>
+        </div>
         <MagneticButton
           onClick={() => router.push("/app")}
           strength={0.4}

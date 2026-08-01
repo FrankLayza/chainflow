@@ -1,3 +1,16 @@
+/**
+ * The demo recipient is the same funded test address the in-app presets use, so
+ * every rule shown on the landing page actually parses and executes. ENS names
+ * are deliberately absent: `ParsedRuleSchema` requires `/^0x[a-fA-F0-9]{40}$/`
+ * and no resolver exists, so a `.eth` name here would advertise something the
+ * product would reject.
+ */
+export const DEMO_RECIPIENT = "0xd2107C0e5fd43faDd5D3200F6084C3786a83A7A1";
+export const DEMO_RECIPIENT_SHORT = "0xd210…A7A1";
+
+export const NETWORK_LABEL = "Ethereum Sepolia";
+export const NETWORK_CHAIN_ID = "11155111";
+
 export const steps = [
   {
     number: "01",
@@ -7,7 +20,7 @@ export const steps = [
     lines: [
       {
         prefix: ">",
-        text: '"Send 0.1 ETH to vitalik.eth every Monday"',
+        text: `"Send 0.01 ETH to ${DEMO_RECIPIENT_SHORT} every 24 hours"`,
         tone: "input" as const,
       },
     ],
@@ -20,12 +33,12 @@ export const steps = [
     lines: [
       {
         prefix: "✓",
-        text: "Parsed: transfer · 0.1 ETH · vitalik.eth · weekly (Monday)",
+        text: `Parsed: transfer · 0.01 ETH · ${DEMO_RECIPIENT_SHORT} · every 24h`,
         tone: "ok" as const,
       },
       {
         prefix: "✓",
-        text: "Simulated: gas estimate 21,000 · testnet Sepolia",
+        text: "Simulated: will not revert · gas sponsored",
         tone: "ok" as const,
       },
     ],
@@ -38,7 +51,7 @@ export const steps = [
     lines: [
       {
         prefix: "✓",
-        text: "Executed: 0x3a8f...7c2d · confirmed block #18,293,441",
+        text: "Executed: 0x5b67…e471 · confirmed on Etherscan",
         tone: "ok" as const,
       },
     ],
