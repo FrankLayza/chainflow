@@ -23,7 +23,7 @@
   },
   "registries": {
     "@componentry": "https://componentry.fun/r/{name}.json",
-    "@godui": "https://godui.design/registry/{name}.json",
+    "@godui": "https://godui.design/r/{name}.json",
     "@beui": "https://beui.dev/r/{name}.json"
   }
 }

@@ -26,19 +26,22 @@ export default function AuditLogsTestPage() {
   }, []);
 
   return (
-    <div className="p-8 bg-smoke-charcoal min-h-screen text-warm-off-white font-mono">
-      <div className="mb-6 flex justify-between items-center border-b border-iron-veil pb-4">
+    <div className="p-8 bg-gray-900 min-h-screen text-white font-mono">
+      <div className="mb-6 flex justify-between items-center gap-4 border-b border-white/[0.06] pb-4">
         <h1 className="text-2xl font-bold">Raw Audit Logs Test View</h1>
-        <Link href="/app" className="text-muted-cobalt underline hover:text-white">
+        <Link
+          href="/app"
+          className="text-violet-400 underline hover:text-white transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded"
+        >
           ← Back to Chat App
         </Link>
       </div>
 
-      {loading && <p>Loading audit logs from API...</p>}
-      {error && <p className="text-red-500">Error: {error}</p>}
-      
+      {loading && <p className="text-gray-400">Loading audit logs from API...</p>}
+      {error && <p className="text-danger">Error: {error}</p>}
+
       {!loading && !error && data && (
-        <pre className="bg-absolute p-4 rounded border border-iron-veil overflow-auto text-sm">
+        <pre className="bg-gray-950 p-5 rounded-2xl border border-white/[0.06] overflow-auto text-sm">
           {JSON.stringify(data, null, 2)}
         </pre>
       )}

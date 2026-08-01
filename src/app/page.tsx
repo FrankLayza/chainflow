@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
 import {
   AnimatePresence,
   MotionConfig,
@@ -10,9 +9,11 @@ import {
   useReducedMotion,
 } from "framer-motion";
 import { AnimatedGradient } from "@/components/ui/animated-gradient";
-import { ArrowRight, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { MagneticButton } from "@/components/godui/magnetic-button";
+import { TextAnimate } from "@/components/godui/text-animate";
+import { ExpandingArrowButton } from "@/components/motion/expanding-arrow-button";
 import { cn } from "@/lib/utils";
 
 const heroContainer = {
@@ -148,13 +149,17 @@ export default function LandingPage() {
             chainflow
           </motion.span>
 
-          <motion.h1
-            variants={heroItem}
-            className="mt-6 text-6xl md:text-display font-bold tracking-tight leading-none text-white text-balance text-center"
-          >
-            Say it. Simulate it.{" "}
-            <span className="text-violet-400 italic">Send it.</span>
-          </motion.h1>
+          <motion.div variants={{ hidden: {}, show: {} }}>
+            <TextAnimate
+              as="h1"
+              by="character"
+              animation="slideLeft"
+              delay={0.4}
+              className="mt-6 text-6xl md:text-display font-bold tracking-tight leading-none text-white text-balance text-center [&>span:nth-last-child(-n+8)]:text-violet-400 [&>span:nth-last-child(-n+8)]:italic"
+            >
+              Say it. Simulate it. Send it.
+            </TextAnimate>
+          </motion.div>
 
           <motion.p
             variants={heroItem}
@@ -164,14 +169,17 @@ export default function LandingPage() {
             sponsored.
           </motion.p>
 
-          <motion.div variants={heroItem} className="mt-8 pointer-events-auto">
-            <Link
-              href="/app"
-              className="group inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-white text-gray-950 text-sm font-semibold transition-colors duration-150 hover:bg-gray-200 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 cursor-pointer"
+          <motion.div
+            variants={heroItem}
+            className="mt-8 pointer-events-auto justify-center"
+          >
+            <ExpandingArrowButton
+              onClick={() => router.push("/app")}
+              accentClassName="bg-violet-400"
+              className="focus-visible:ring-violet-400"
             >
               Launch the app
-              <ArrowRight className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-0.5" />
-            </Link>
+            </ExpandingArrowButton>
           </motion.div>
         </motion.div>
       </section>
