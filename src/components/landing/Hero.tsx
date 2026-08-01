@@ -7,8 +7,9 @@ import { AnimatedGradient } from "@/components/ui/animated-gradient";
 import { MagneticButton } from "@/components/godui/magnetic-button";
 import { TextAnimate } from "@/components/godui/text-animate";
 import { ExpandingArrowButton } from "@/components/motion/expanding-arrow-button";
+import { DitheredLogo } from "@/components/ui/dithered-logo";
 import Image from "next/image";
-import Link from "next/link"
+import Link from "next/link";
 
 const heroContainer = {
   hidden: {},

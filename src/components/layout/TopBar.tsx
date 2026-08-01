@@ -6,7 +6,7 @@ import { truncateAddress } from "@/lib/format";
 import type { Async } from "@/types/async";
 import type { WalletInfo } from "@/types/rule";
 import Link from "next/link";
-import Image from "next/image"
+import Image from "next/image";
 
 interface TopBarProps {
   wallet: Async<WalletInfo>;
@@ -22,8 +22,8 @@ export const TopBar: React.FC<TopBarProps> = ({ wallet }) => {
   return (
     <header className="w-full shrink-0 bg-gray-950/80 backdrop-blur-md border-b border-white/6 px-6 h-14 flex items-center select-none">
       <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-4">
-        <Link href="/" className="font-semibold text-base tracking-wide lowercase text-white flex items-center gap-1">
-          <Image src="/logo.png" alt="logo" width={20} height={20} />
+        <Link href="/" className="font-semibold text-base tracking-wide lowercase text-white flex items-center gap-2">
+          <Image src="/logo.png" alt="logo" width={24} height={24} className="shrink-0" />
           chainflow
         </Link>
 

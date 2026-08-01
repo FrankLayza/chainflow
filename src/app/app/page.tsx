@@ -30,6 +30,16 @@ export default function AppPage() {
   const [auditRefreshKey, setAuditRefreshKey] = useState(0);
   const [mobileTab, setMobileTab] = useState<'chat' | 'activity'>('chat');
   const [unseenActivity, setUnseenActivity] = useState(false);
+  const [initialPrompt, setInitialPrompt] = useState<string | null>(null);
+
+  // Read `?rule=` from the landing page's use-case links. Done with
+  // window.location rather than useSearchParams so this route stays static —
+  // useSearchParams would force a Suspense boundary and dynamic rendering.
+  // The value only ever populates the composer; it is never auto-submitted.
+  useEffect(() => {
+    const rule = new URLSearchParams(window.location.search).get('rule');
+    if (rule) setInitialPrompt(rule.slice(0, 300));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -212,6 +222,7 @@ export default function AppPage() {
             onSimulateRule={simulateRule}
             onActivateRule={activateRule}
             isExecuting={isExecuting}
+            initialPrompt={initialPrompt}
           />
         </div>
 

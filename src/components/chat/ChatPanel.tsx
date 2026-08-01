@@ -36,6 +36,8 @@ interface ChatPanelProps {
   onSimulateRule: (rule: ParsedRule) => Promise<RuleSimulation | null>;
   onActivateRule: (rule: ParsedRule) => Promise<ExecutionReceipt | null>;
   isExecuting?: boolean;
+  /** Pre-fills the composer from a `?rule=` deep link. Never auto-submits. */
+  initialPrompt?: string | null;
 }
 
 const now = () =>
@@ -49,11 +51,21 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onSimulateRule,
   onActivateRule,
   isExecuting,
+  initialPrompt,
 }) => {
   const [input, setInput] = React.useState("");
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [isParsing, setIsParsing] = React.useState(false);
   const endRef = React.useRef<HTMLDivElement>(null);
+  const seededRef = React.useRef(false);
+
+  // Seeds once. A previous version keyed this to a prop and re-fired on every
+  // change with a stale closure over the send handler.
+  React.useEffect(() => {
+    if (seededRef.current || !initialPrompt) return;
+    seededRef.current = true;
+    setInput(initialPrompt);
+  }, [initialPrompt]);
 
   // Without this the receipt — the artifact the whole product exists to produce
   // — can append below the fold and never be seen.
