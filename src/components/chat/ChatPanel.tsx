@@ -212,6 +212,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   onRetrySimulate={() =>
                     msg.kind === "rule" && simulate(msg.id, msg.rule)
                   }
+                  onResetExec={() =>
+                    patch(msg.id, { exec: "idle", execError: undefined })
+                  }
                   onEditPrompt={(p) => setInput(p)}
                 />
               ))}
@@ -282,6 +285,7 @@ function MessageRow({
   onCancelConfirm,
   onBroadcast,
   onRetrySimulate,
+  onResetExec,
   onEditPrompt,
 }: {
   msg: Message;
@@ -290,6 +294,7 @@ function MessageRow({
   onCancelConfirm: () => void;
   onBroadcast: () => void;
   onRetrySimulate: () => void;
+  onResetExec: () => void;
   onEditPrompt: (prompt: string) => void;
 }) {
   if (msg.kind === "user") {
@@ -366,6 +371,7 @@ function MessageRow({
           onCancelConfirm={onCancelConfirm}
           onBroadcast={onBroadcast}
           onRetrySimulate={onRetrySimulate}
+          onResetExec={onResetExec}
           globallyLocked={globallyLocked}
         />
         {msg.exec === "failed" && msg.execError && (

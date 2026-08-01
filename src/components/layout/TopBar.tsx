@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { truncateAddress } from "@/lib/format";
 import type { Async } from "@/types/async";
 import type { WalletInfo } from "@/types/rule";
+import Link from "next/link";
 
 interface TopBarProps {
   wallet: Async<WalletInfo>;
@@ -20,9 +21,9 @@ export const TopBar: React.FC<TopBarProps> = ({ wallet }) => {
   return (
     <header className="w-full shrink-0 bg-gray-950/80 backdrop-blur-md border-b border-white/[0.06] px-6 h-14 flex items-center select-none">
       <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-4">
-        <span className="font-semibold text-base tracking-wide lowercase text-white">
+        <Link href="/" className="font-semibold text-base tracking-wide lowercase text-white">
           chainflow
-        </span>
+        </Link>
 
         {wallet.kind === "loading" && (
           <div

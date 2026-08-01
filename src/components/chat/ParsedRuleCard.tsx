@@ -23,6 +23,8 @@ interface ParsedRuleCardProps {
   onCancelConfirm: () => void;
   onBroadcast: () => void;
   onRetrySimulate: () => void;
+  /** Returns a failed card to the armed verdict state, not to the prompt. */
+  onResetExec: () => void;
   /** True while any execution is in flight, including another card's. */
   globallyLocked: boolean;
 }
@@ -70,6 +72,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
   onCancelConfirm,
   onBroadcast,
   onRetrySimulate,
+  onResetExec,
   globallyLocked,
 }) => {
   const reduceMotion = useReducedMotion();
@@ -173,9 +176,17 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
             )}
           >
             {sim.simulation.passed ? (
-              <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" strokeWidth={2} />
+              <CheckCircle2
+                className="w-3.5 h-3.5 mt-0.5 shrink-0"
+                strokeWidth={2}
+                aria-hidden
+              />
             ) : (
-              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" strokeWidth={2} />
+              <AlertTriangle
+                className="w-3.5 h-3.5 mt-0.5 shrink-0"
+                strokeWidth={2}
+                aria-hidden
+              />
             )}
             <span>
               {sim.simulation.passed
@@ -187,7 +198,11 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
 
         {sim.phase === "error" && (
           <div className="flex items-start gap-2 text-[13px] px-3 py-2 rounded-[10px] border border-danger/30 bg-danger/10 text-danger mb-3">
-            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" strokeWidth={2} />
+            <AlertTriangle
+              className="w-3.5 h-3.5 mt-0.5 shrink-0"
+              strokeWidth={2}
+              aria-hidden
+            />
             <div className="min-w-0">
               <p>Simulation failed to run.</p>
               <p className="text-gray-400 mt-0.5 break-words">{sim.message}</p>
@@ -281,7 +296,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
                 Retry simulation
               </button>
             ) : exec === "failed" ? (
-              <button type="button" onClick={onConfirm} className={ghostButton}>
+              <button type="button" onClick={onResetExec} className={ghostButton}>
                 Try again
               </button>
             ) : (
