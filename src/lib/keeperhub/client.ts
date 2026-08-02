@@ -26,6 +26,8 @@ export interface KeeperHubExecutionResponse {
   error?: string;
 }
 
+import { DEFAULT_CHAIN_ID } from './config';
+
 const KEEPERHUB_BASE_URL = 'https://app.keeperhub.com/api';
 
 function getApiKey(): string {
@@ -44,7 +46,7 @@ export async function executeTransfer(
   idempotencyKey?: string
 ): Promise<KeeperHubExecutionResponse> {
   const apiKey = getApiKey();
-  const chainId = params.chainId || 11155111; // Default to Ethereum Sepolia (11155111)
+  const chainId = params.chainId || DEFAULT_CHAIN_ID;
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${apiKey}`,

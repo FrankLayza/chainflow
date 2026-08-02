@@ -1,6 +1,6 @@
 /**
- * store.ts — thin facade that delegates to the SQLite audit repository.
- * Preserves the original API surface so existing route handlers need no changes.
+ * store.ts — thin facade that delegates to the audit repository.
+ * Async throughout since the repository moved to libSQL.
  */
 import { ExecutionRecord, ParsedRule } from '@/types/rule';
 import {
@@ -13,9 +13,6 @@ import {
   type ActiveRule,
 } from '@/repositories/audit-repository';
 
-// ---------------------------------------------------------------------------
-// Re-export repository helpers needed by the evaluator engine directly
-// ---------------------------------------------------------------------------
 export {
   registerActiveRule,
   getQueuedActiveRules,
@@ -25,39 +22,39 @@ export {
   createAuditRecord,
   listAuditRecords,
   getAuditRecord,
+  listPendingExecutions,
 } from '@/repositories/audit-repository';
 
-// ---------------------------------------------------------------------------
-// Legacy API — used by existing /api/execute-rule and /api/audit-logs routes
-// ---------------------------------------------------------------------------
-
-export function saveRule(rule: ParsedRule): ParsedRule {
-  registerActiveRule(rule);
+export async function saveRule(rule: ParsedRule, sessionId?: string): Promise<ParsedRule> {
+  await registerActiveRule(rule, sessionId);
   return rule;
 }
 
-export function getActiveRules(): ActiveRule[] {
-  return listAllRules();
+export async function getActiveRules(sessionId?: string): Promise<ActiveRule[]> {
+  return listAllRules(sessionId);
 }
 
-export function saveExecutionRecord(record: ExecutionRecord): ExecutionRecord {
-  legacySaveExecution(record);
+export async function saveExecutionRecord(record: ExecutionRecord): Promise<ExecutionRecord> {
+  await legacySaveExecution(record);
   return record;
 }
 
-export function getExecutionRecords(): ExecutionRecord[] {
-  return legacyGetExecutions();
+export async function getExecutionRecords(sessionId?: string): Promise<ExecutionRecord[]> {
+  return legacyGetExecutions(sessionId);
 }
 
-export function updateRule(
+export async function updateRule(
   id: string,
   patch: Partial<Pick<ActiveRule, 'status' | 'last_checked_at' | 'last_executed_at'>>
-): void {
-  updateActiveRule(id, patch);
+): Promise<void> {
+  await updateActiveRule(id, patch);
 }
 
-export function updateExecutionRecord(id: string, patch: Partial<ExecutionRecord>): void {
-  updateAuditRecord(id, {
+export async function updateExecutionRecord(
+  id: string,
+  patch: Partial<ExecutionRecord>
+): Promise<void> {
+  await updateAuditRecord(id, {
     status: patch.status as any,
     transaction_hash: patch.txHash,
     explorer_url: patch.explorerUrl,

@@ -11,12 +11,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "db:check": "node scripts/db-check.mjs",
+    "db:migrate": "node scripts/db-check.mjs --migrate"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.29",
     "@ai-sdk/openai": "^4.0.24",
     "@base-ui/react": "^1.6.0",
+    "@libsql/client": "^0.17.4",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "ai": "^7.0.41",
     "class-variance-authority": "^0.7.1",

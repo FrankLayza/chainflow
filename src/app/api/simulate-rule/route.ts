@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { executeTransfer } from '@/lib/keeperhub/client';
+import { DEFAULT_CHAIN_ID } from '@/lib/keeperhub/config';
 
 export async function POST(request: Request) {
   try {
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
 
     const khResponse = await executeTransfer(
       {
-        chainId: 11155111,
+        chainId: DEFAULT_CHAIN_ID,
         recipientAddress: targetAddress,
         amount: transferAmount,
         simulate: true,
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
         from: khResponse.from || null,
         to: khResponse.to || targetAddress,
         amount: transferAmount,
-        sponsored: true,
+        sponsored: khResponse.result?.sponsored ?? true,
       },
     });
   } catch (error: any) {

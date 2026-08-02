@@ -1,10 +1,8 @@
-import { getDb } from './db';
+import { getDb, ensureSchema } from './db';
 import { ExecutionRecord, ParsedRule } from '@/types/rule';
-import crypto from 'crypto';
+import { DEFAULT_CHAIN_ID } from '@/lib/keeperhub/config';
+import type { InValue } from '@libsql/client';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 export type RecordStatus =
   | 'PENDING'
   | 'SIMULATED'
@@ -15,6 +13,7 @@ export type RecordStatus =
 
 export interface AuditRecord {
   id: string;
+  session_id?: string;
   idempotency_key?: string;
   raw_input: string;
   parsed_rule_json?: string;
@@ -46,6 +45,7 @@ export type ActiveRuleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'FAILED';
 
 export interface ActiveRule {
   id: string;
+  session_id?: string;
   raw_input: string;
   rule_type: string;
   action_type: string;
@@ -58,104 +58,157 @@ export interface ActiveRule {
   created_at: string;
 }
 
-function cleanParams<T extends Record<string, any>>(obj: T): T {
-  const result: any = {};
+function args(obj: Record<string, unknown>): Record<string, InValue> {
+  const result: Record<string, InValue> = {};
   for (const [key, val] of Object.entries(obj)) {
-    result[key] = val === undefined ? null : val;
+    result[key] = (val === undefined ? null : val) as InValue;
   }
   return result;
 }
 
-// ---------------------------------------------------------------------------
-// Audit Records
-// ---------------------------------------------------------------------------
+function toAuditRecord(row: Record<string, unknown>): AuditRecord {
+  return { ...row, sponsored: Boolean(row.sponsored) } as AuditRecord;
+}
 
-export function createAuditRecord(
+export async function createAuditRecord(
   record: Omit<AuditRecord, 'created_at' | 'updated_at'>
-): AuditRecord {
+): Promise<AuditRecord> {
   const db = getDb();
+  await ensureSchema();
   const now = new Date().toISOString();
 
-  const defaultRecord = {
-    id: '',
+  const params = args({
+    session_id: null,
     idempotency_key: null,
-    raw_input: '',
     parsed_rule_json: null,
     network: null,
     keeperhub_execution_id: null,
-    status: 'PENDING',
     transaction_hash: null,
     explorer_url: null,
     gas_used: null,
-    sponsored: 1,
     recipient_address: null,
     amount: null,
     chain_id: null,
     error_code: null,
     error_message_safe: null,
-    created_at: now,
-    updated_at: now,
-  };
-
-  const params = cleanParams({
-    ...defaultRecord,
     ...record,
-    sponsored: record.sponsored ? 1 : 0,
+    sponsored: record.sponsored === false ? 0 : 1,
     created_at: now,
     updated_at: now,
   });
 
-  db.prepare(`
-    INSERT INTO audit_records (
-      id, idempotency_key, raw_input, parsed_rule_json, network,
+  await db.execute({
+    sql: `INSERT INTO audit_records (
+      id, session_id, idempotency_key, raw_input, parsed_rule_json, network,
       keeperhub_execution_id, status, transaction_hash, explorer_url,
       gas_used, sponsored, recipient_address, amount, chain_id,
       error_code, error_message_safe, created_at, updated_at
     ) VALUES (
-      @id, @idempotency_key, @raw_input, @parsed_rule_json, @network,
-      @keeperhub_execution_id, @status, @transaction_hash, @explorer_url,
-      @gas_used, @sponsored, @recipient_address, @amount, @chain_id,
-      @error_code, @error_message_safe, @created_at, @updated_at
-    )
-  `).run(params);
+      :id, :session_id, :idempotency_key, :raw_input, :parsed_rule_json, :network,
+      :keeperhub_execution_id, :status, :transaction_hash, :explorer_url,
+      :gas_used, :sponsored, :recipient_address, :amount, :chain_id,
+      :error_code, :error_message_safe, :created_at, :updated_at
+    )`,
+    args: params,
+  });
 
-  return getAuditRecord(record.id)!;
+  return (await getAuditRecord(record.id))!;
 }
 
-export function updateAuditRecord(
+// Only these columns may be patched. The UPDATE builds its SET clause from
+// caller-supplied keys, so an allowlist is what keeps that interpolation safe.
+const UPDATABLE_COLUMNS = new Set([
+  'idempotency_key',
+  'raw_input',
+  'parsed_rule_json',
+  'network',
+  'keeperhub_execution_id',
+  'status',
+  'transaction_hash',
+  'explorer_url',
+  'gas_used',
+  'sponsored',
+  'recipient_address',
+  'amount',
+  'chain_id',
+  'error_code',
+  'error_message_safe',
+]);
+
+export async function updateAuditRecord(
   id: string,
   patch: Partial<Omit<AuditRecord, 'id' | 'created_at'>>
-): void {
+): Promise<void> {
+  const entries = Object.entries(patch).filter(([key]) => UPDATABLE_COLUMNS.has(key));
+  if (entries.length === 0) return;
+
   const db = getDb();
-  const cleanPatch = cleanParams(patch);
-  const fields = Object.keys(cleanPatch)
-    .map((k) => `${k} = @${k}`)
-    .join(', ');
-  db.prepare(
-    `UPDATE audit_records SET ${fields}, updated_at = @updated_at WHERE id = @id`
-  ).run({ ...cleanPatch, updated_at: new Date().toISOString(), id });
+  await ensureSchema();
+
+  const assignments = entries.map(([key]) => `${key} = :${key}`).join(', ');
+  await db.execute({
+    sql: `UPDATE audit_records SET ${assignments}, updated_at = :updated_at WHERE id = :id`,
+    args: args({
+      ...Object.fromEntries(entries),
+      updated_at: new Date().toISOString(),
+      id,
+    }),
+  });
 }
 
-export function getAuditRecord(id: string): AuditRecord | null {
+export async function getAuditRecord(id: string): Promise<AuditRecord | null> {
   const db = getDb();
-  return (db.prepare('SELECT * FROM audit_records WHERE id = ?').get(id) as AuditRecord) ?? null;
+  await ensureSchema();
+  const result = await db.execute({
+    sql: 'SELECT * FROM audit_records WHERE id = :id',
+    args: { id },
+  });
+  const row = result.rows[0];
+  return row ? toAuditRecord(row as unknown as Record<string, unknown>) : null;
 }
 
-export function listAuditRecords(limit = 50): AuditRecord[] {
+/**
+ * Scoped to one session. Passing no sessionId returns nothing rather than
+ * everything — an accidental omission should leak no rows.
+ */
+export async function listAuditRecords(sessionId?: string, limit = 50): Promise<AuditRecord[]> {
+  if (!sessionId) return [];
   const db = getDb();
-  return db.prepare('SELECT * FROM audit_records ORDER BY created_at DESC LIMIT ?').all(limit) as AuditRecord[];
+  await ensureSchema();
+  const result = await db.execute({
+    sql: `SELECT * FROM audit_records WHERE session_id = :session_id
+          ORDER BY created_at DESC LIMIT :limit`,
+    args: { session_id: sessionId, limit },
+  });
+  return result.rows.map((row) => toAuditRecord(row as unknown as Record<string, unknown>));
 }
 
-// ---------------------------------------------------------------------------
-// Audit Events
-// ---------------------------------------------------------------------------
+/**
+ * PENDING rows that carry a KeeperHub execution id, so a later poll can settle
+ * them. Scoped to the session for the same reason the list endpoints are.
+ */
+export async function listPendingExecutions(sessionId?: string): Promise<AuditRecord[]> {
+  if (!sessionId) return [];
+  const db = getDb();
+  await ensureSchema();
+  const result = await db.execute({
+    sql: `SELECT * FROM audit_records
+          WHERE session_id = :session_id
+            AND status IN ('PENDING', 'EXECUTING', 'RETRYING')
+            AND keeperhub_execution_id IS NOT NULL
+          ORDER BY created_at DESC`,
+    args: { session_id: sessionId },
+  });
+  return result.rows.map((row) => toAuditRecord(row as unknown as Record<string, unknown>));
+}
 
-export function addAuditEvent(
+export async function addAuditEvent(
   auditRecordId: string,
   status: string,
   messageSafe?: string
-): AuditEvent {
+): Promise<AuditEvent> {
   const db = getDb();
+  await ensureSchema();
   const event: AuditEvent = {
     id: crypto.randomUUID(),
     audit_record_id: auditRecordId,
@@ -163,29 +216,33 @@ export function addAuditEvent(
     message_safe: messageSafe,
     occurred_at: new Date().toISOString(),
   };
-  db.prepare(`
-    INSERT INTO audit_events (id, audit_record_id, status, message_safe, occurred_at)
-    VALUES (@id, @audit_record_id, @status, @message_safe, @occurred_at)
-  `).run(cleanParams(event));
+  await db.execute({
+    sql: `INSERT INTO audit_events (id, audit_record_id, status, message_safe, occurred_at)
+          VALUES (:id, :audit_record_id, :status, :message_safe, :occurred_at)`,
+    args: args(event as unknown as Record<string, unknown>),
+  });
   return event;
 }
 
-export function getAuditEvents(auditRecordId: string): AuditEvent[] {
+export async function getAuditEvents(auditRecordId: string): Promise<AuditEvent[]> {
   const db = getDb();
-  return db
-    .prepare('SELECT * FROM audit_events WHERE audit_record_id = ? ORDER BY occurred_at ASC')
-    .all(auditRecordId) as AuditEvent[];
+  await ensureSchema();
+  const result = await db.execute({
+    sql: 'SELECT * FROM audit_events WHERE audit_record_id = :id ORDER BY occurred_at ASC',
+    args: { id: auditRecordId },
+  });
+  return result.rows as unknown as AuditEvent[];
 }
 
-// ---------------------------------------------------------------------------
-// Active Rules
-// ---------------------------------------------------------------------------
-
-export function registerActiveRule(rule: ParsedRule): ActiveRule {
+export async function registerActiveRule(
+  rule: ParsedRule,
+  sessionId?: string
+): Promise<ActiveRule> {
   const db = getDb();
-  const now = new Date().toISOString();
+  await ensureSchema();
   const row: ActiveRule = {
     id: rule.id || crypto.randomUUID(),
+    session_id: sessionId,
     raw_input: rule.rawInput,
     rule_type: rule.ruleType,
     action_type: rule.actionType,
@@ -195,51 +252,65 @@ export function registerActiveRule(rule: ParsedRule): ActiveRule {
     status: 'ACTIVE',
     last_checked_at: null,
     last_executed_at: null,
-    created_at: now,
+    created_at: new Date().toISOString(),
   };
 
-  db.prepare(`
-    INSERT OR REPLACE INTO active_rules (
-      id, raw_input, rule_type, action_type, parameters_json,
+  await db.execute({
+    sql: `INSERT OR REPLACE INTO active_rules (
+      id, session_id, raw_input, rule_type, action_type, parameters_json,
       explanation, network, status, last_checked_at, last_executed_at, created_at
     ) VALUES (
-      @id, @raw_input, @rule_type, @action_type, @parameters_json,
-      @explanation, @network, @status, @last_checked_at, @last_executed_at, @created_at
-    )
-  `).run(cleanParams(row));
+      :id, :session_id, :raw_input, :rule_type, :action_type, :parameters_json,
+      :explanation, :network, :status, :last_checked_at, :last_executed_at, :created_at
+    )`,
+    args: args(row as unknown as Record<string, unknown>),
+  });
 
   return row;
 }
 
-export function getQueuedActiveRules(): ActiveRule[] {
+export async function getQueuedActiveRules(): Promise<ActiveRule[]> {
   const db = getDb();
-  return db
-    .prepare("SELECT * FROM active_rules WHERE status = 'ACTIVE' ORDER BY created_at ASC")
-    .all() as ActiveRule[];
+  await ensureSchema();
+  const result = await db.execute(
+    "SELECT * FROM active_rules WHERE status = 'ACTIVE' ORDER BY created_at ASC"
+  );
+  return result.rows as unknown as ActiveRule[];
 }
 
-export function listAllRules(): ActiveRule[] {
+export async function listAllRules(sessionId?: string): Promise<ActiveRule[]> {
+  if (!sessionId) return [];
   const db = getDb();
-  return db
-    .prepare('SELECT * FROM active_rules ORDER BY created_at DESC')
-    .all() as ActiveRule[];
+  await ensureSchema();
+  const result = await db.execute({
+    sql: 'SELECT * FROM active_rules WHERE session_id = :session_id ORDER BY created_at DESC',
+    args: { session_id: sessionId },
+  });
+  return result.rows as unknown as ActiveRule[];
 }
 
-export function updateActiveRule(
+export async function updateActiveRule(
   id: string,
   patch: Partial<Pick<ActiveRule, 'status' | 'last_checked_at' | 'last_executed_at'>>
-): void {
+): Promise<void> {
+  const entries = Object.entries(patch);
+  if (entries.length === 0) return;
+
   const db = getDb();
-  const fields = Object.keys(patch).map((k) => `${k} = @${k}`).join(', ');
-  db.prepare(`UPDATE active_rules SET ${fields} WHERE id = @id`).run({ ...patch, id });
+  await ensureSchema();
+  const assignments = entries.map(([key]) => `${key} = :${key}`).join(', ');
+  await db.execute({
+    sql: `UPDATE active_rules SET ${assignments} WHERE id = :id`,
+    args: args({ ...patch, id }),
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Legacy bridge — keeps the old store.ts API surface working
 // Maps ExecutionRecord → AuditRecord
 // ---------------------------------------------------------------------------
-export function legacySaveExecution(record: ExecutionRecord): void {
-  createAuditRecord({
+export async function legacySaveExecution(record: ExecutionRecord): Promise<void> {
+  await createAuditRecord({
     id: record.id,
     raw_input: record.rawInput,
     network: 'Ethereum Sepolia',
@@ -256,8 +327,9 @@ export function legacySaveExecution(record: ExecutionRecord): void {
   });
 }
 
-export function legacyGetExecutions(): ExecutionRecord[] {
-  return listAuditRecords().map((r) => ({
+export async function legacyGetExecutions(sessionId?: string): Promise<ExecutionRecord[]> {
+  const records = await listAuditRecords(sessionId);
+  return records.map((r) => ({
     id: r.id,
     rawInput: r.raw_input,
     timestamp: r.created_at,
@@ -268,7 +340,7 @@ export function legacyGetExecutions(): ExecutionRecord[] {
     sponsored: Boolean(r.sponsored),
     recipientAddress: r.recipient_address || '',
     amount: r.amount || '0',
-    chainId: r.chain_id || 11155111,
+    chainId: r.chain_id || DEFAULT_CHAIN_ID,
     errorMessage: r.error_message_safe,
   }));
 }

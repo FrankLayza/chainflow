@@ -1,10 +1,66 @@
 import { NextResponse } from 'next/server';
-import { listAllRules, listAuditRecords } from '@/repositories/audit-repository';
+import {
+  addAuditEvent,
+  listAllRules,
+  listAuditRecords,
+  listPendingExecutions,
+  updateAuditRecord,
+} from '@/repositories/audit-repository';
+import { getExecutionStatus } from '@/lib/keeperhub/client';
+import { resolveSessionId } from '@/lib/session';
+import { DEFAULT_CHAIN_ID, NETWORK_LABEL, explorerUrl as txExplorerUrl } from '@/lib/keeperhub/config';
+
+async function reconcilePendingExecutions(sessionId: string): Promise<number> {
+  const pending = await listPendingExecutions(sessionId);
+  let reconciled = 0;
+
+  for (const record of pending) {
+    if (!record.keeperhub_execution_id) continue;
+    try {
+      const status = await getExecutionStatus(record.keeperhub_execution_id);
+      const reported = status.status?.toLowerCase() ?? '';
+      const txHash = status.transactionHash || status.result?.transactionHash || null;
+
+      if (txHash) {
+        await updateAuditRecord(record.id, {
+          status: 'CONFIRMED',
+          transaction_hash: txHash,
+          explorer_url:
+            status.transactionLink ||
+            status.result?.transactionLink ||
+            txExplorerUrl(record.chain_id || DEFAULT_CHAIN_ID, txHash),
+          gas_used:
+            status.result?.gasUsed != null ? `${status.result.gasUsed} units` : record.gas_used,
+        });
+        await addAuditEvent(record.id, 'CONFIRMED', `Reconciled: tx confirmed via status poll. Tx: ${txHash}`);
+      } else if (
+        reported.includes('fail') ||
+        reported.includes('error') ||
+        reported.includes('revert')
+      ) {
+        await updateAuditRecord(record.id, { status: 'FAILED' });
+        await addAuditEvent(record.id, 'FAILED', 'Reconciled: execution failed on KeeperHub');
+      } else {
+        continue;
+      }
+      reconciled++;
+    } catch (error: any) {
+      console.warn('Reconcile status poll failed:', record.keeperhub_execution_id, error?.message);
+    }
+  }
+
+  return reconciled;
+}
 
 export async function GET() {
   try {
-    const rawRules = listAllRules();
-    const rawExecutions = listAuditRecords();
+    const sessionId = await resolveSessionId();
+    const reconciled = await reconcilePendingExecutions(sessionId);
+    const rawRules = await listAllRules(sessionId);
+    const rawExecutions = await listAuditRecords(sessionId);
+
+    const walletAddress =
+      process.env.KEEPERHUB_WALLET_ADDRESS || process.env.keeperhub_wallet_address || null;
 
     const rules = rawRules.map((r) => ({
       id: r.id,
@@ -31,17 +87,18 @@ export async function GET() {
       sponsored: Boolean(e.sponsored),
       recipientAddress: e.recipient_address || '',
       amount: e.amount || '0',
-      chainId: e.chain_id || 11155111,
+      chainId: e.chain_id || DEFAULT_CHAIN_ID,
       errorMessage: e.error_message_safe,
     }));
 
     return NextResponse.json({
       success: true,
+      reconciled,
       rules,
       executions,
       wallet: {
-        address: process.env.keeperhub_wallet_address || '0xcafa5cb62968a28087171f2c3c4e9bcc6b18d221',
-        network: 'Ethereum Sepolia (Chain ID 11155111)',
+        address: walletAddress,
+        network: `${NETWORK_LABEL} (Chain ID ${DEFAULT_CHAIN_ID})`,
         type: 'KeeperHub Turnkey EOA',
       },
     });
