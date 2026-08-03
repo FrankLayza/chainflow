@@ -16,7 +16,10 @@ export async function parseNaturalLanguageRule(input: string): Promise<ParsedRul
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     try {
       const { object } = await generateObject({
-        model: google('gemini-2.5-flash'),
+        // gemini-2.5-flash is closed to new API keys and shuts down 2026-10-16.
+        // Pinned rather than using a -latest alias: those track experimental
+        // builds with tighter rate limits.
+        model: google('gemini-3.6-flash'),
         schema: ParsedRuleSchema,
         system: `You are an expert Web3 Automation Rule Parser for ChainFlow (powered by KeeperHub).
 Your task is to parse the user's natural language input into a structured rule object.
@@ -86,7 +89,12 @@ If the prompt asks for something out of scope or is missing a valid 0x address, 
     thresholdAmount = balMatch[1];
     explanation = `When demo wallet balance exceeds ${thresholdAmount} ETH, automatically transfer ${transferAmount} ETH to ${targetAddress.slice(0, 6)}...${targetAddress.slice(-4)} via KeeperHub.`;
   } else {
-    throw new Error('Unsupported Rule. ChainFlow Demo only supports: Balance thresholds, Price drops, and Scheduled transfers.');
+    // A bare "transfer X to 0x…" carries no trigger word, but it is the most
+    // common request and every preset is phrased that way. Treat it as fire-now
+    // rather than rejecting it: a zero balance threshold is always satisfied.
+    ruleType = 'BALANCE_ABOVE';
+    thresholdAmount = '0';
+    explanation = `Immediately transfer ${transferAmount} ETH to ${targetAddress.slice(0, 6)}...${targetAddress.slice(-4)} via KeeperHub.`;
   }
 
   const rawRule = {
