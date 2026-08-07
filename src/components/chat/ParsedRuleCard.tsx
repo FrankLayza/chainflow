@@ -21,6 +21,8 @@ interface ParsedRuleCardProps {
   exec: ExecState;
   onConfirm: () => void;
   onCancelConfirm: () => void;
+  /** Removes this card and its source message from the thread. */
+  onDiscard: () => void;
   onBroadcast: () => void;
   onRetrySimulate: () => void;
   /** Returns a failed card to the armed verdict state, not to the prompt. */
@@ -70,6 +72,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
   exec,
   onConfirm,
   onCancelConfirm,
+  onDiscard,
   onBroadcast,
   onRetrySimulate,
   onResetExec,
@@ -291,28 +294,39 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
               <span className="truncate">Gas sponsored by KeeperHub</span>
             </span>
 
-            {sim.phase === "error" ? (
-              <button type="button" onClick={onRetrySimulate} className={ghostButton}>
-                Retry simulation
-              </button>
-            ) : exec === "failed" ? (
-              <button type="button" onClick={onResetExec} className={ghostButton}>
-                Try again
-              </button>
-            ) : (
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                onClick={onConfirm}
-                disabled={!armed || globallyLocked}
-                className={primaryButton}
+                onClick={onDiscard}
+                className={ghostButton}
+                aria-label="Cancel this action"
               >
-                {sim.phase === "simulating"
-                  ? "Simulating…"
-                  : sim.phase === "done" && !sim.simulation.passed
-                    ? "Blocked"
-                    : "Confirm & execute"}
+                Cancel
               </button>
-            )}
+
+              {sim.phase === "error" ? (
+                <button type="button" onClick={onRetrySimulate} className={ghostButton}>
+                  Retry simulation
+                </button>
+              ) : exec === "failed" ? (
+                <button type="button" onClick={onResetExec} className={ghostButton}>
+                  Try again
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onConfirm}
+                  disabled={!armed || globallyLocked}
+                  className={primaryButton}
+                >
+                  {sim.phase === "simulating"
+                    ? "Simulating…"
+                    : sim.phase === "done" && !sim.simulation.passed
+                      ? "Blocked"
+                      : "Confirm & execute"}
+                </button>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

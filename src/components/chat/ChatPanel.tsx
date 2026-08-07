@@ -23,6 +23,8 @@ type Message =
   | {
       id: string;
       kind: "rule";
+      /** Id of the user bubble that produced this card, so cancelling can remove the pair. */
+      userId?: string;
       rule: ParsedRule;
       sim: SimState;
       exec: ExecState;
@@ -84,6 +86,17 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     );
   }, []);
 
+  /** Removes a parsed-rule card and the user message that produced it, so a
+      user can back out of an action before any execution is armed. */
+  const discardRule = React.useCallback((id: string) => {
+    setMessages((prev) => {
+      const target = prev.find((m) => m.id === id);
+      if (!target || target.kind !== "rule") return prev;
+      const removed = new Set([id, ...(target.userId ? [target.userId] : [])]);
+      return prev.filter((m) => !removed.has(m.id));
+    });
+  }, []);
+
   const simulate = React.useCallback(
     async (id: string, rule: ParsedRule) => {
       patch(id, { sim: { phase: "simulating" } });
@@ -111,9 +124,10 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       const prompt = text.trim();
       if (!prompt || isParsing || isExecuting) return;
 
+      const userMsgId = crypto.randomUUID();
       setMessages((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), kind: "user", text: prompt, at: now() },
+        { id: userMsgId, kind: "user", text: prompt, at: now() },
       ]);
       setInput("");
       setIsParsing(true);
@@ -168,6 +182,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             ? {
                 id: m.id,
                 kind: "rule",
+                userId: userMsgId,
                 rule: parsed,
                 sim: { phase: "simulating" },
                 exec: "idle",
@@ -218,6 +233,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   globallyLocked={Boolean(isExecuting)}
                   onConfirm={() => patch(msg.id, { exec: "confirming" })}
                   onCancelConfirm={() => patch(msg.id, { exec: "idle" })}
+                  onDiscard={() => discardRule(msg.id)}
                   onBroadcast={() =>
                     msg.kind === "rule" && broadcast(msg.id, msg.rule)
                   }
@@ -295,6 +311,7 @@ function MessageRow({
   globallyLocked,
   onConfirm,
   onCancelConfirm,
+  onDiscard,
   onBroadcast,
   onRetrySimulate,
   onResetExec,
@@ -304,6 +321,7 @@ function MessageRow({
   globallyLocked: boolean;
   onConfirm: () => void;
   onCancelConfirm: () => void;
+  onDiscard: () => void;
   onBroadcast: () => void;
   onRetrySimulate: () => void;
   onResetExec: () => void;
@@ -381,6 +399,7 @@ function MessageRow({
           exec={msg.exec}
           onConfirm={onConfirm}
           onCancelConfirm={onCancelConfirm}
+          onDiscard={onDiscard}
           onBroadcast={onBroadcast}
           onRetrySimulate={onRetrySimulate}
           onResetExec={onResetExec}
