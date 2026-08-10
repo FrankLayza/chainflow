@@ -99,3 +99,25 @@ export function formatElapsed(ms: number): string {
   const seconds = total % 60;
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
+
+/**
+ * Scheduled intervals are stored with either intervalHours or intervalMinutes
+ * set (days are normalised to hours at parse time). Render whichever unit the
+ * rule carries so "every 2 minutes" never displays as "0.033 hours".
+ */
+export function formatInterval(parameters: {
+  intervalHours?: number | null;
+  intervalMinutes?: number | null;
+}): string {
+  const minutes = parameters.intervalMinutes;
+  const hours = parameters.intervalHours;
+  if (minutes != null && Number.isFinite(minutes) && minutes > 0) {
+    const value = Number.isInteger(minutes) ? minutes : minutes.toFixed(1);
+    return `${value} min${minutes === 1 ? "" : "s"}`;
+  }
+  if (hours != null && Number.isFinite(hours) && hours > 0) {
+    const value = Number.isInteger(hours) ? hours : hours.toFixed(1);
+    return `${value} hr${hours === 1 ? "" : "s"}`;
+  }
+  return "N";
+}

@@ -3,9 +3,11 @@ import crypto from 'crypto';
 import { executeTransfer } from '@/lib/keeperhub/client';
 import { DEFAULT_CHAIN_ID } from '@/lib/keeperhub/config';
 import { broadcastTransfer } from '@/lib/keeperhub/broadcast';
+import { checkSufficientBalance } from '@/lib/keeperhub/balance';
 import { registerActiveRule } from '@/repositories/audit-repository';
 import { resolveSessionId } from '@/lib/session';
 import { ParsedRule } from '@/types/rule';
+import { formatInterval } from '@/lib/format';
 
 const DEFERRED_TRIGGERS = new Set(['PRICE_BELOW', 'PRICE_ABOVE', 'SCHEDULED_INTERVAL']);
 
@@ -31,7 +33,7 @@ export async function POST(request: Request) {
       const activeRule = await registerActiveRule(rule, sessionId);
       const message =
         rule.ruleType === 'SCHEDULED_INTERVAL'
-          ? `Rule armed. Will transfer ${transferAmount} ${rule.parameters.tokenSymbol || 'ETH'} every ${rule.parameters.intervalHours ?? 'N'} hours.`
+          ? `Rule armed. Will transfer ${transferAmount} ${rule.parameters.tokenSymbol || 'ETH'} every ${formatInterval(rule.parameters)}.`
           : `Rule armed. Will transfer ${transferAmount} ${rule.parameters.tokenSymbol || 'ETH'} when the price crosses the threshold.`;
       return NextResponse.json({
         success: true,
@@ -57,6 +59,11 @@ export async function POST(request: Request) {
         status: 'SIMULATED',
         khResponse,
       });
+    }
+
+    const guard = await checkSufficientBalance(transferAmount);
+    if (!guard.ok) {
+      throw new Error(guard.reason || 'Insufficient balance to execute this transfer.');
     }
 
     const { record, viaMcp, khResponse, executionId } = await broadcastTransfer(rule, sessionId);

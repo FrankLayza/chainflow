@@ -20,6 +20,7 @@ export const ParsedRuleSchema = z.object({
     transferAmount: z.string().describe('Amount to transfer e.g. "0.0001"'),
     tokenSymbol: z.string().default('ETH'),
     intervalHours: z.number().optional().describe('Interval in hours for scheduled triggers'),
+    intervalMinutes: z.number().optional().describe('Interval in minutes for scheduled triggers'),
   }),
   explanation: z.string().describe('Plain English summary of what will happen'),
   network: z.string().default('Ethereum Sepolia'),

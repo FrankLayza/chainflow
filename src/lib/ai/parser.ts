@@ -2,6 +2,25 @@ import { generateObject } from 'ai';
 import { google } from '@ai-sdk/google';
 import { ParsedRule, ParsedRuleSchema } from '@/types/rule';
 
+interface ExtractedInterval {
+  hours?: number;
+  minutes?: number;
+}
+
+/** Pull "every 2 minutes / 30 mins / 6 hours / 3 days" from a prompt. Days are
+    normalised to hours so the stored rule keeps a single unit pair, and the
+    given "days" count becomes a real 24x multiplier (previously it was stored
+    raw, turning "every 2 days" into "every 2 hours"). */
+function extractInterval(input: string): ExtractedInterval | null {
+  const match = input.match(/([0-9]+)\s*(days?|hours?|hrs?|minutes?|mins?)/i);
+  if (!match) return null;
+  const value = parseInt(match[1], 10);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  if (/^days?$/i.test(match[2])) return { hours: value * 24 };
+  if (/^(minutes?|mins?)$/i.test(match[2])) return { minutes: value };
+  return { hours: value };
+}
+
 /**
  * Intelligent Rule Parser using Vercel AI SDK
  * Converts plain English prompt into a validated ParsedRule object using LLM structured output.
@@ -29,7 +48,7 @@ STRICT MVP BOUNDARIES:
    - BALANCE_ABOVE: Triggers when wallet balance exceeds a threshold.
    - PRICE_BELOW: Triggers when a token price drops below a threshold (use the price number, e.g. "$2400").
    - PRICE_ABOVE: Triggers when a token price rises above a threshold (use the price number, e.g. "$2600").
-   - SCHEDULED_INTERVAL: Triggers at a recurring time interval in hours.
+   - SCHEDULED_INTERVAL: Triggers at a recurring time interval. Set intervalHours or intervalMinutes to match the unit the user used ("every 2 minutes" → intervalMinutes: 2, "every 6 hours" → intervalHours: 6). Never invent an interval the user did not state.
 
 2. Supported Actions (actionType):
    - TRANSFER_TOKEN: Transfer native ETH or tokens.
@@ -42,6 +61,58 @@ STRICT MVP BOUNDARIES:
 If the prompt asks for something out of scope or is missing a valid 0x address, make sure the explanation clearly states what is missing.`,
         prompt: trimmed,
       });
+
+      // Post-LLM trigger guard ---------------------------------------------
+      // Gemini has invented a SCHEDULED_INTERVAL for bare transfers
+      // ("send 0.001 eth to 0x…" became "every 24 hours"). Recompute the
+      // trigger-word cues deterministically and refuse any deferred ruleType
+      // whose cue the prompt never contained, coercing it back toward the
+      // immediate transfer the user actually asked for.
+      const hasScheduledCue =
+        /every|hours?|hrs?|days?|schedule|daily|recurring|interval|weekly|monthly/i.test(
+          trimmed,
+        );
+      const hasBalanceCue = /exceeds|greater than|balance/i.test(trimmed);
+      const hasPriceCue =
+        /\$/i.test(trimmed) ||
+        /\bprice\b/i.test(trimmed) ||
+        (!hasBalanceCue &&
+          (/\b(?:trading|trades?|sits|goes)\s+(?:above|below)\b/i.test(trimmed) ||
+            /\b(?:drops|falls|rises|surpasses)\b/i.test(trimmed)));
+
+      const scheduledRequested = object.ruleType === 'SCHEDULED_INTERVAL';
+      const priceRequested =
+        object.ruleType === 'PRICE_BELOW' || object.ruleType === 'PRICE_ABOVE';
+
+      let coerced = false;
+      if (scheduledRequested && !hasScheduledCue) {
+        object.ruleType = 'BALANCE_ABOVE';
+        object.parameters.thresholdAmount = '0';
+        object.parameters.intervalHours = undefined;
+        coerced = true;
+      } else if (priceRequested && !hasPriceCue) {
+        // Solicited once, but keep the LLM's threshold so the number still
+        // matches the prompt; a bare transfer gets the always-true threshold.
+        object.ruleType = 'BALANCE_ABOVE';
+        object.parameters.intervalHours = undefined;
+        if (!hasBalanceCue) object.parameters.thresholdAmount = '0';
+        coerced = true;
+      }
+
+      if (coerced) {
+        object.explanation = `Immediately transfer ${object.parameters.transferAmount} ETH to ${object.parameters.targetAddress.slice(0, 6)}...${object.parameters.targetAddress.slice(-4)} via KeeperHub.`;
+      }
+
+      // The prompt is the authority on units: recompute the interval from the
+      // original text so "every 2 minutes" can never arrive as 2 hours.
+      if (object.ruleType === 'SCHEDULED_INTERVAL') {
+        const interval = extractInterval(trimmed) ?? { hours: 24 };
+        object.parameters.intervalHours = interval.hours;
+        object.parameters.intervalMinutes = interval.minutes;
+        object.parameters.thresholdAmount = String(
+          interval.minutes != null ? interval.minutes : interval.hours ?? 24,
+        );
+      }
 
       return object;
     } catch (aiErr: any) {
@@ -96,9 +167,14 @@ If the prompt asks for something out of scope or is missing a valid 0x address, 
         : `When ETH price drops below $${thresholdAmount}, trigger a safety transfer of ${transferAmount} ETH to ${targetAddress.slice(0, 6)}...${targetAddress.slice(-4)} via KeeperHub.`;
   } else if (isScheduled) {
     ruleType = 'SCHEDULED_INTERVAL';
-    const timeMatch = trimmed.match(/([0-9]+)\s*(?:hours?|hrs?|days?)/i);
-    thresholdAmount = timeMatch ? timeMatch[1] : '24';
-    explanation = `Automatically execute a transfer of ${transferAmount} ETH to ${targetAddress.slice(0, 6)}...${targetAddress.slice(-4)} every ${thresholdAmount} hours via KeeperHub.`;
+    const interval = extractInterval(trimmed) ?? { hours: 24 };
+    thresholdAmount = String(
+      interval.minutes != null ? interval.minutes : interval.hours ?? 24,
+    );
+    explanation =
+      interval.minutes != null
+        ? `Automatically execute a transfer of ${transferAmount} ETH to ${targetAddress.slice(0, 6)}...${targetAddress.slice(-4)} every ${interval.minutes} minutes via KeeperHub.`
+        : `Automatically execute a transfer of ${transferAmount} ETH to ${targetAddress.slice(0, 6)}...${targetAddress.slice(-4)} every ${interval.hours ?? 24} hours via KeeperHub.`;
   } else if (isBalance) {
     ruleType = 'BALANCE_ABOVE';
     const balMatch = trimmed.match(/(?:exceeds|above|greater than|>)\s*([0-9.]+)/i);
@@ -114,6 +190,9 @@ If the prompt asks for something out of scope or is missing a valid 0x address, 
     explanation = `Immediately transfer ${transferAmount} ETH to ${targetAddress.slice(0, 6)}...${targetAddress.slice(-4)} via KeeperHub.`;
   }
 
+  const scheduledInterval =
+    ruleType === 'SCHEDULED_INTERVAL' ? (extractInterval(trimmed) ?? { hours: 24 }) : undefined;
+
   const rawRule = {
     id: crypto.randomUUID(),
     rawInput: trimmed,
@@ -124,7 +203,8 @@ If the prompt asks for something out of scope or is missing a valid 0x address, 
       targetAddress,
       transferAmount,
       tokenSymbol: 'ETH',
-      intervalHours: ruleType === 'SCHEDULED_INTERVAL' ? parseInt(thresholdAmount) : undefined,
+      intervalHours: scheduledInterval?.hours,
+      intervalMinutes: scheduledInterval?.minutes,
     },
     explanation,
     network: 'Ethereum Sepolia',

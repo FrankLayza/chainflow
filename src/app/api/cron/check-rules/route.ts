@@ -8,6 +8,8 @@ import {
 import { broadcastTransfer } from '@/lib/keeperhub/broadcast';
 import { getTokenUsdPrice } from '@/lib/coingecko';
 import { ParsedRule, ParsedRuleSchema } from '@/types/rule';
+import { formatInterval } from '@/lib/format';
+import { checkSufficientBalance } from '@/lib/keeperhub/balance';
 
 export const maxDuration = 60;
 
@@ -31,6 +33,7 @@ function isAuthorized(request: NextRequest): boolean {
 }
 
 const HOUR_MS = 3_600_000;
+const MINUTE_MS = 60_000;
 
 interface RuleCheck {
   id: string;
@@ -66,8 +69,16 @@ async function evaluateScheduled(rule: ActiveRule, parsed: ParsedRule): Promise<
     message: '',
   };
 
-  const intervalHours = Number(parsed.parameters.intervalHours);
-  if (!Number.isFinite(intervalHours) || intervalHours <= 0) {
+  const interval = formatInterval(parsed.parameters);
+  const intervalMinutes = parsed.parameters.intervalMinutes;
+  const intervalHours = parsed.parameters.intervalHours;
+  const intervalMs =
+    intervalMinutes != null
+      ? intervalMinutes * MINUTE_MS
+      : intervalHours != null
+        ? intervalHours * HOUR_MS
+        : Number.NaN;
+  if (!Number.isFinite(intervalMs) || intervalMs <= 0) {
     await updateActiveRule(rule.id, { status: 'FAILED' });
     return { ...base, message: 'Invalid interval; rule disabled.' };
   }
@@ -77,11 +88,19 @@ async function evaluateScheduled(rule: ActiveRule, parsed: ParsedRule): Promise<
   // interval. The interval itself lives here, not in the scheduler, so any
   // pinger cadence (1 min, 5 min, hourly) is fine as long as it is finer than
   // the interval.
-  const due = lastExec === null || Date.now() - lastExec >= intervalHours * HOUR_MS;
+  const due = lastExec === null || Date.now() - lastExec >= intervalMs;
 
   if (!due) {
     await updateActiveRule(rule.id, { last_checked_at: new Date().toISOString() });
-    return { ...base, message: `Not due yet (every ${intervalHours}h).` };
+    return { ...base, message: `Not due yet (every ${interval}).` };
+  }
+
+  // Never broadcast what the wallet cannot cover. The rule stays ACTIVE so it
+  // retries on a later tick once the balance is topped up.
+  const guard = await checkSufficientBalance(parsed.parameters.transferAmount);
+  if (!guard.ok) {
+    await updateActiveRule(rule.id, { last_checked_at: new Date().toISOString() });
+    return { ...base, message: `${guard.reason || 'Insufficient balance'} Skipped this fire.` };
   }
 
   // Optimistic claim: only the tick that flips last_executed_at wins the race,
@@ -93,7 +112,7 @@ async function evaluateScheduled(rule: ActiveRule, parsed: ParsedRule): Promise<
   }
 
   await broadcastTransfer(parsed, rule.session_id, { markRuleTerminal: false });
-  return { ...base, fired: true, message: `Recurring transfer fired (every ${intervalHours}h).` };
+  return { ...base, fired: true, message: `Recurring transfer fired (every ${interval}).` };
 }
 
 async function evaluatePrice(rule: ActiveRule, price: number): Promise<RuleCheck> {
@@ -125,6 +144,14 @@ async function evaluatePrice(rule: ActiveRule, price: number): Promise<RuleCheck
       ...base,
       message: `${rule.rule_type} not triggered (ETH $${price} vs $${threshold}).`,
     };
+  }
+
+  // Refuse to broadcast an amount the wallet cannot cover. A price rule stays
+  // ACTIVE and re-checks on the next tick.
+  const guard = await checkSufficientBalance(parsed.parameters.transferAmount);
+  if (!guard.ok) {
+    await updateActiveRule(rule.id, { last_checked_at: new Date().toISOString() });
+    return { ...base, message: `${guard.reason || 'Insufficient balance'} Skipped this fire.` };
   }
 
   await broadcastTransfer(parsed, rule.session_id);

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { FieldGrid, type Field } from "@/components/ui/FieldGrid";
-import { formatElapsed, formatGas, truncateAddress } from "@/lib/format";
+import { formatElapsed, formatGas, formatInterval, truncateAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ExecState, ParsedRule, SimState } from "@/types/rule";
 
@@ -88,7 +88,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
     rule.ruleType === "SCHEDULED_INTERVAL";
   const deferredHint = isDeferred
     ? rule.ruleType === "SCHEDULED_INTERVAL"
-      ? `It fires every ${rule.parameters.intervalHours ?? "N"} hours.`
+      ? `It fires every ${formatInterval(rule.parameters)}.`
       : "It fires when the price crosses the threshold."
     : null;
 
@@ -159,7 +159,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
       className="w-full bg-gray-800 rounded-2xl p-4"
     >
       <div className="flex items-center justify-between gap-3 mb-3">
-        <span className="text-[11px] uppercase tracking-[0.04em] text-gray-500 font-mono">
+        <span className="text-caption-tracked uppercase tracking-caption-tracked text-gray-500 font-mono">
           Parsed rule
         </span>
         {sim.phase === "simulating" && (
@@ -182,7 +182,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
         {sim.phase === "done" && (
           <div
             className={cn(
-              "flex items-start gap-2 text-[13px] px-3 py-2 rounded-[10px] border mb-3",
+              "flex items-start gap-2 text-body-sm px-3 py-2 rounded-[10px] border mb-3",
               sim.simulation.passed
                 ? "text-success border-success/30 bg-success/10"
                 : "text-danger border-danger/30 bg-danger/10",
@@ -210,7 +210,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
         )}
 
         {sim.phase === "error" && (
-          <div className="flex items-start gap-2 text-[13px] px-3 py-2 rounded-[10px] border border-danger/30 bg-danger/10 text-danger mb-3">
+          <div className="flex items-start gap-2 text-body-sm px-3 py-2 rounded-[10px] border border-danger/30 bg-danger/10 text-danger mb-3">
             <AlertTriangle
               className="w-3.5 h-3.5 mt-0.5 shrink-0"
               strokeWidth={2}
@@ -218,7 +218,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
             />
             <div className="min-w-0">
               <p>Simulation failed to run.</p>
-              <p className="text-gray-400 mt-0.5 break-words">{sim.message}</p>
+              <p className="text-gray-400 mt-0.5 wrap-break-word">{sim.message}</p>
             </div>
           </div>
         )}
@@ -234,7 +234,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
             transition={{ type: "spring", duration: 0.3, bounce: 0 }}
             className="rounded-[10px] border border-violet-500/30 bg-violet-500/5 p-3"
           >
-            <p className="text-[13px] text-white mb-3">
+            <p className="text-body-sm text-white mb-3">
               {isDeferred
                 ? `Arms this rule. Nothing broadcasts now — ${deferredHint}`
                 : "This broadcasts to Ethereum Sepolia. It cannot be undone."}
@@ -273,7 +273,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
             {/* KeeperHub emits no progress events, so no step is marked complete
                 without evidence — only the active one is shown as live. */}
             <div className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-2 text-[13px] text-violet-400">
+              <span className="flex items-center gap-2 text-body-sm text-violet-400">
                 <span className="relative flex w-2 h-2">
                   <span className="absolute inset-0 rounded-full bg-violet-500 opacity-75 motion-safe:animate-ping" />
                   <span className="relative w-2 h-2 rounded-full bg-violet-500" />
@@ -284,7 +284,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
                 {formatElapsed(elapsed)}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-[13px] text-gray-500">
+            <div className="flex items-center gap-2 text-body-sm text-gray-500">
               <span className="w-2 h-2 rounded-full border border-gray-600" />
               {isDeferred ? "Registering trigger" : "Waiting for confirmation"}
             </div>
@@ -294,7 +294,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
             key="done"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-[13px] text-gray-400"
+            className="text-body-sm text-gray-400"
           >
             Broadcast complete. Receipt below.
           </motion.p>
