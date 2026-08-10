@@ -155,7 +155,11 @@ export default function AppPage() {
           executionId: data?.executionId ?? undefined,
           // No 'CONFIRMED' fallback: an unknown status must stay unknown so the
           // receipt can render it honestly rather than claim success.
-          status: data?.record?.status || data?.status || 'UNKNOWN',
+          status: data?.registered
+            ? 'REGISTERED'
+            : data?.record?.status || data?.status || 'UNKNOWN',
+          registered: Boolean(data?.registered),
+          message: data?.message,
           txHash: data?.record?.transaction_hash || data?.khResponse?.transactionHash,
           explorerUrl: data?.record?.explorer_url || data?.khResponse?.transactionLink,
           gasUsed: data?.record?.gas_used,
@@ -169,6 +173,17 @@ export default function AppPage() {
   );
 
   const refreshAudit = useCallback(() => setAuditRefreshKey((key) => key + 1), []);
+
+  const disableRule = useCallback(async (ruleId: string) => {
+    const res = await fetch('/api/rules/disable', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ruleId }),
+    });
+    const data = await readJson(res);
+    if (!res.ok) throw new Error(data?.error || 'Failed to disable rule');
+    setAuditRefreshKey((key) => key + 1);
+  }, []);
 
   const executionCount = audit.kind === 'ready' ? audit.data.executions.length : 0;
 
@@ -236,6 +251,7 @@ export default function AppPage() {
             audit={audit}
             onRefresh={refreshAudit}
             isRefreshing={auditFetching}
+            onDisableRule={disableRule}
           />
         </aside>
       </div>

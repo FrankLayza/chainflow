@@ -167,6 +167,17 @@ export async function getAuditRecord(id: string): Promise<AuditRecord | null> {
   return row ? toAuditRecord(row as unknown as Record<string, unknown>) : null;
 }
 
+export async function getActiveRule(id: string): Promise<ActiveRule | null> {
+  const db = getDb();
+  await ensureSchema();
+  const result = await db.execute({
+    sql: 'SELECT * FROM active_rules WHERE id = :id',
+    args: { id },
+  });
+  const row = result.rows[0];
+  return row ? (row as unknown as ActiveRule) : null;
+}
+
 /**
  * Scoped to one session. Passing no sessionId returns nothing rather than
  * everything — an accidental omission should leak no rows.
@@ -303,6 +314,28 @@ export async function updateActiveRule(
     sql: `UPDATE active_rules SET ${assignments} WHERE id = :id`,
     args: args({ ...patch, id }),
   });
+}
+
+/**
+ * Atomically claims the next fire of a recurring rule. Only succeeds if
+ * `last_executed_at` still matches what the caller read, so two overlapping
+ * cron ticks (retries, misconfigured schedulers) cannot both broadcast a
+ * scheduled transfer. Returns false when another tick won the race.
+ */
+export async function claimScheduledFire(
+  id: string,
+  expectedLastExecutedAt: string | null
+): Promise<boolean> {
+  const db = getDb();
+  await ensureSchema();
+  const now = new Date().toISOString();
+  const result = await db.execute({
+    sql: `UPDATE active_rules
+          SET last_executed_at = :now, last_checked_at = :now
+          WHERE id = :id AND last_executed_at IS :expected`,
+    args: args({ id, now, expected: expectedLastExecutedAt }),
+  });
+  return Number(result.rowsAffected) > 0;
 }
 
 // ---------------------------------------------------------------------------

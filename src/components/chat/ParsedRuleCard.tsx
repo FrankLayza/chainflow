@@ -81,6 +81,16 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
   const reduceMotion = useReducedMotion();
   const broadcastRef = React.useRef<HTMLButtonElement>(null);
   const elapsed = useElapsed(exec === "executing");
+  // These rules arm and fire later (cron), rather than broadcasting on confirm.
+  const isDeferred =
+    rule.ruleType === "PRICE_BELOW" ||
+    rule.ruleType === "PRICE_ABOVE" ||
+    rule.ruleType === "SCHEDULED_INTERVAL";
+  const deferredHint = isDeferred
+    ? rule.ruleType === "SCHEDULED_INTERVAL"
+      ? `It fires every ${rule.parameters.intervalHours ?? "N"} hours.`
+      : "It fires when the price crosses the threshold."
+    : null;
 
   const armed = sim.phase === "done" && sim.simulation.passed && exec === "idle";
   const gas =
@@ -225,7 +235,9 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
             className="rounded-[10px] border border-violet-500/30 bg-violet-500/5 p-3"
           >
             <p className="text-[13px] text-white mb-3">
-              This broadcasts to Ethereum Sepolia. It cannot be undone.
+              {isDeferred
+                ? `Arms this rule. Nothing broadcasts now — ${deferredHint}`
+                : "This broadcasts to Ethereum Sepolia. It cannot be undone."}
             </p>
             <div className="flex items-center gap-2">
               <button type="button" onClick={onCancelConfirm} className={ghostButton}>
@@ -238,8 +250,14 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
                 disabled={globallyLocked}
                 className={primaryButton}
               >
-                Broadcast {rule.parameters.transferAmount}{" "}
-                {rule.parameters.tokenSymbol || "ETH"}
+                {isDeferred ? (
+                  "Arm rule"
+                ) : (
+                  <>
+                    Broadcast {rule.parameters.transferAmount}{" "}
+                    {rule.parameters.tokenSymbol || "ETH"}
+                  </>
+                )}
                 <ArrowRight className="w-4 h-4" strokeWidth={2} aria-hidden />
               </button>
             </div>
@@ -260,7 +278,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
                   <span className="absolute inset-0 rounded-full bg-violet-500 opacity-75 motion-safe:animate-ping" />
                   <span className="relative w-2 h-2 rounded-full bg-violet-500" />
                 </span>
-                Broadcasting to Sepolia
+                {isDeferred ? "Arming rule" : "Broadcasting to Sepolia"}
               </span>
               <span className="font-mono text-xs text-gray-500 tabular-nums">
                 {formatElapsed(elapsed)}
@@ -268,7 +286,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
             </div>
             <div className="flex items-center gap-2 text-[13px] text-gray-500">
               <span className="w-2 h-2 rounded-full border border-gray-600" />
-              Waiting for confirmation
+              {isDeferred ? "Registering trigger" : "Waiting for confirmation"}
             </div>
           </motion.div>
         ) : exec === "done" ? (
@@ -323,7 +341,9 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
                     ? "Simulating…"
                     : sim.phase === "done" && !sim.simulation.passed
                       ? "Blocked"
-                      : "Confirm & execute"}
+                      : isDeferred
+                        ? "Arm rule"
+                        : "Confirm & execute"}
                 </button>
               )}
             </div>

@@ -27,7 +27,8 @@ Your task is to parse the user's natural language input into a structured rule o
 STRICT MVP BOUNDARIES:
 1. Supported Rule Types (ruleType):
    - BALANCE_ABOVE: Triggers when wallet balance exceeds a threshold.
-   - PRICE_BELOW: Triggers when asset price drops below a threshold.
+   - PRICE_BELOW: Triggers when a token price drops below a threshold (use the price number, e.g. "$2400").
+   - PRICE_ABOVE: Triggers when a token price rises above a threshold (use the price number, e.g. "$2600").
    - SCHEDULED_INTERVAL: Triggers at a recurring time interval in hours.
 
 2. Supported Actions (actionType):
@@ -63,23 +64,39 @@ If the prompt asks for something out of scope or is missing a valid 0x address, 
   const transferAmount = amountMatch ? amountMatch[1] : '0.0001';
 
   // Requirement 2: Enforce MVP Rule Types
-  let ruleType: 'BALANCE_ABOVE' | 'PRICE_BELOW' | 'SCHEDULED_INTERVAL';
+  let ruleType: 'BALANCE_ABOVE' | 'PRICE_BELOW' | 'PRICE_ABOVE' | 'SCHEDULED_INTERVAL';
   let thresholdAmount = '0';
   let explanation = '';
 
-  const isPrice = /price|drops|below|\$/i.test(trimmed);
+  // Balance wording vetoes generic price verbs ("balance goes above 1.5" is not
+  // a price). Explicit cues — a $ sign or the word "price" — always win.
+  const isBalance = /exceeds|greater than|balance/i.test(trimmed);
+  const isPrice =
+    /\$/i.test(trimmed) ||
+    /\bprice\b/i.test(trimmed) ||
+    (!isBalance &&
+      (/\b(?:trading|trades?|sits|goes)\s+(?:above|below)\b/i.test(trimmed) ||
+        /\b(?:drops|falls|rises|surpasses)\b/i.test(trimmed)));
   const isScheduled = /every|hours|schedule|daily|recurring/i.test(trimmed);
-  const isBalance = /exceeds|above|greater than|balance/i.test(trimmed);
 
   if (isPrice) {
-    ruleType = 'PRICE_BELOW';
-    const priceMatch = trimmed.match(/(?:below|under|\$)\s*([0-9,.]+)/i);
-    if (!priceMatch) throw new Error('Could not detect the price threshold (e.g., "$2500").');
-    thresholdAmount = priceMatch[1].replace(/,/g, '');
-    explanation = `When ETH price drops below $${thresholdAmount}, trigger a safety transfer of ${transferAmount} ETH to ${targetAddress.slice(0, 6)}...${targetAddress.slice(-4)} via KeeperHub.`;
+    // "above" phrasing wins only when it is clearly a price ceiling ("rises
+    // above", "price goes above $X", "$X and rising"). A bare "above" leans
+    // balance in most prompts, but inside price language it means PRICE_ABOVE.
+    const priceAbove = /rises (above|to)|price.*goes above|price.*surpasses|above\s+\$|\$\s*[0-9.,]+\s*(?:and )?rising|trading above|trades? above|price above|moves above|surpasses/i.test(trimmed);
+    ruleType = priceAbove ? 'PRICE_ABOVE' : 'PRICE_BELOW';
+    const thresholdMatch = trimmed.match(
+      /(?:below|above|under|drops to|rises to|surpasses|trading)\s*\$?\s*([0-9,.]+)/i
+    ) || trimmed.match(/\$\s*([0-9,.]+)/i);
+    if (!thresholdMatch) throw new Error('Could not detect the price threshold (e.g., "$2500").');
+    thresholdAmount = thresholdMatch[1].replace(/,/g, '');
+    explanation =
+      ruleType === 'PRICE_ABOVE'
+        ? `When ETH price rises above $${thresholdAmount}, trigger a safety transfer of ${transferAmount} ETH to ${targetAddress.slice(0, 6)}...${targetAddress.slice(-4)} via KeeperHub.`
+        : `When ETH price drops below $${thresholdAmount}, trigger a safety transfer of ${transferAmount} ETH to ${targetAddress.slice(0, 6)}...${targetAddress.slice(-4)} via KeeperHub.`;
   } else if (isScheduled) {
     ruleType = 'SCHEDULED_INTERVAL';
-    const timeMatch = trimmed.match(/([0-9]+)\s*(?:hours|days)/i);
+    const timeMatch = trimmed.match(/([0-9]+)\s*(?:hours?|hrs?|days?)/i);
     thresholdAmount = timeMatch ? timeMatch[1] : '24';
     explanation = `Automatically execute a transfer of ${transferAmount} ETH to ${targetAddress.slice(0, 6)}...${targetAddress.slice(-4)} every ${thresholdAmount} hours via KeeperHub.`;
   } else if (isBalance) {

@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
-export const TriggerTypeSchema = z.enum(['BALANCE_ABOVE', 'PRICE_BELOW', 'SCHEDULED_INTERVAL']);
+export const TriggerTypeSchema = z.enum([
+  'BALANCE_ABOVE',
+  'PRICE_BELOW',
+  'PRICE_ABOVE',
+  'SCHEDULED_INTERVAL',
+]);
 
 export const ActionTypeSchema = z.enum(['TRANSFER_TOKEN', 'SWEEP_WALLET', 'TRIGGER_CONTRACT']);
 
@@ -57,6 +62,9 @@ export interface ExecutionReceipt {
   explorerUrl?: string;
   gasUsed?: string;
   viaMcp: boolean;
+  /** True when the action armed a price rule instead of broadcasting. */
+  registered?: boolean;
+  message?: string;
 }
 
 export interface WalletInfo {
@@ -65,8 +73,17 @@ export interface WalletInfo {
   name?: string;
 }
 
+/** An armed rule as shown in the Activity panel — a ParsedRule plus its
+    persisted trigger state so the UI can offer Disable/status. */
+export interface ActiveRuleView extends ParsedRule {
+  status: string;
+  lastCheckedAt?: string | null;
+  lastExecutedAt?: string | null;
+  createdAt?: string;
+}
+
 export interface AuditData {
-  rules: ParsedRule[];
+  rules: ActiveRuleView[];
   executions: ExecutionRecord[];
 }
 

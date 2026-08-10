@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, Ban, RefreshCw } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { MonoValue } from "@/components/ui/MonoValue";
 import {
@@ -12,12 +12,14 @@ import {
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Async } from "@/types/async";
-import type { AuditData, ExecutionRecord, ParsedRule } from "@/types/rule";
+import type { ActiveRuleView, AuditData, ExecutionRecord } from "@/types/rule";
 
 interface AuditDashboardProps {
   audit: Async<AuditData>;
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  /** Disables an armed rule; the caller refreshes the list after. */
+  onDisableRule?: (ruleId: string) => Promise<void>;
 }
 
 const ghostButton = cn(
@@ -109,18 +111,49 @@ function ExecutionRow({ record }: { record: ExecutionRecord }) {
   );
 }
 
-function RuleRow({ rule }: { rule: ParsedRule }) {
+function RuleRow({
+  rule,
+  onDisable,
+  disabling,
+}: {
+  rule: ActiveRuleView;
+  onDisable?: (id: string) => void;
+  disabling?: boolean;
+}) {
+  const isActive = rule.status === "ACTIVE";
+  const ruleId = rule.id;
+
   return (
     <li className="bg-gray-800 border border-white/[0.06] rounded-xl p-3 space-y-1.5">
       <div className="flex items-center justify-between gap-3">
         <span className="font-mono text-xs text-violet-400">{rule.ruleType}</span>
-        <span className="font-mono text-[11px] text-gray-500 shrink-0">
-          {rule.network}
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          {isActive && <StatusBadge tone="live" label="Active" />}
+          <span className="font-mono text-[11px] text-gray-500">{rule.network}</span>
+        </div>
       </div>
       <p className="text-[13px] text-gray-400 line-clamp-2 text-pretty">
         {rule.explanation}
       </p>
+      {isActive && onDisable && ruleId && (
+        <button
+          type="button"
+          onClick={() => onDisable(ruleId)}
+          disabled={disabling}
+          className={cn(
+            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] cursor-pointer",
+            "border border-white/[0.08] text-gray-400 text-xs",
+            "hover:text-danger hover:border-danger/40",
+            "transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50",
+            "focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900",
+            "disabled:opacity-40 disabled:cursor-not-allowed",
+          )}
+        >
+          <Ban className="w-3 h-3" strokeWidth={1.5} aria-hidden />
+          Disable rule
+        </button>
+      )}
     </li>
   );
 }
@@ -129,8 +162,10 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
   audit,
   onRefresh,
   isRefreshing,
+  onDisableRule,
 }) => {
   const isLoading = audit.kind === "loading";
+  const [disablingId, setDisablingId] = React.useState<string | null>(null);
 
   return (
     <div className="w-full h-full flex flex-col bg-gray-900 overflow-y-auto">
@@ -200,7 +235,19 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
               ) : (
                 <ul className="space-y-2">
                   {audit.data.rules.map((rule, i) => (
-                    <RuleRow key={rule.id || i} rule={rule} />
+                    <RuleRow
+                      key={rule.id || i}
+                      rule={rule}
+                      onDisable={
+                        onDisableRule
+                          ? (id) => {
+                              setDisablingId(id);
+                              void onDisableRule(id).finally(() => setDisablingId(null));
+                            }
+                          : undefined
+                      }
+                      disabling={disablingId === (rule.id || String(i))}
+                    />
                   ))}
                 </ul>
               )}
