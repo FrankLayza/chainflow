@@ -185,6 +185,17 @@ export default function AppPage() {
     setAuditRefreshKey((key) => key + 1);
   }, []);
 
+  const enableRule = useCallback(async (ruleId: string) => {
+    const res = await fetch('/api/rules/enable', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ruleId }),
+    });
+    const data = await readJson(res);
+    if (!res.ok) throw new Error(data?.error || 'Failed to enable rule');
+    setAuditRefreshKey((key) => key + 1);
+  }, []);
+
   const executionCount = audit.kind === 'ready' ? audit.data.executions.length : 0;
 
   return (
@@ -252,6 +263,7 @@ export default function AppPage() {
             onRefresh={refreshAudit}
             isRefreshing={auditFetching}
             onDisableRule={disableRule}
+            onEnableRule={enableRule}
           />
         </aside>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, Ban, RefreshCw } from "lucide-react";
+import { AlertTriangle, Ban, Play, RefreshCw } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { MonoValue } from "@/components/ui/MonoValue";
 import {
@@ -20,6 +20,8 @@ interface AuditDashboardProps {
   isRefreshing?: boolean;
   /** Disables an armed rule; the caller refreshes the list after. */
   onDisableRule?: (ruleId: string) => Promise<void>;
+  /** Re-enables a paused rule; the caller refreshes the list after. */
+  onEnableRule?: (ruleId: string) => Promise<void>;
 }
 
 const ghostButton = cn(
@@ -114,11 +116,15 @@ function ExecutionRow({ record }: { record: ExecutionRecord }) {
 function RuleRow({
   rule,
   onDisable,
+  onEnable,
   disabling,
+  enabling,
 }: {
   rule: ActiveRuleView;
   onDisable?: (id: string) => void;
+  onEnable?: (id: string) => void;
   disabling?: boolean;
+  enabling?: boolean;
 }) {
   const isActive = rule.status === "ACTIVE";
   const ruleId = rule.id;
@@ -154,6 +160,25 @@ function RuleRow({
           Disable rule
         </button>
       )}
+      {!isActive && onEnable && ruleId && (
+        <button
+          type="button"
+          onClick={() => onEnable(ruleId)}
+          disabled={enabling}
+          className={cn(
+            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] cursor-pointer",
+            "border border-white/[0.08] text-gray-400 text-xs",
+            "hover:text-emerald-400 hover:border-emerald-400/40",
+            "transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50",
+            "focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900",
+            "disabled:opacity-40 disabled:cursor-not-allowed",
+          )}
+        >
+          <Play className="w-3 h-3" strokeWidth={1.5} aria-hidden />
+          Enable rule
+        </button>
+      )}
     </li>
   );
 }
@@ -163,9 +188,11 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
   onRefresh,
   isRefreshing,
   onDisableRule,
+  onEnableRule,
 }) => {
   const isLoading = audit.kind === "loading";
   const [disablingId, setDisablingId] = React.useState<string | null>(null);
+  const [enablingId, setEnablingId] = React.useState<string | null>(null);
 
   return (
     <div className="w-full h-full flex flex-col bg-gray-900 overflow-y-auto">
@@ -246,7 +273,16 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
                             }
                           : undefined
                       }
+                      onEnable={
+                        onEnableRule
+                          ? (id) => {
+                              setEnablingId(id);
+                              void onEnableRule(id).finally(() => setEnablingId(null));
+                            }
+                          : undefined
+                      }
                       disabling={disablingId === (rule.id || String(i))}
+                      enabling={enablingId === (rule.id || String(i))}
                     />
                   ))}
                 </ul>
