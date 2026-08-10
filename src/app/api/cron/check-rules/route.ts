@@ -9,7 +9,7 @@ import { broadcastTransfer } from '@/lib/keeperhub/broadcast';
 import { getTokenUsdPrice } from '@/lib/coingecko';
 import { ParsedRule, ParsedRuleSchema } from '@/types/rule';
 import { formatInterval } from '@/lib/format';
-import { checkSufficientBalance } from '@/lib/keeperhub/balance';
+import { checkSufficientBalance, getEthBalance } from '@/lib/keeperhub/balance';
 
 export const maxDuration = 60;
 
@@ -162,6 +162,51 @@ async function evaluatePrice(rule: ActiveRule, price: number): Promise<RuleCheck
   };
 }
 
+async function evaluateBalance(rule: ActiveRule): Promise<RuleCheck> {
+  const base: RuleCheck = {
+    id: rule.id,
+    ruleType: rule.rule_type,
+    fired: false,
+    message: '',
+  };
+
+  const parsed = parseRule(rule);
+  if (!parsed) {
+    await updateActiveRule(rule.id, { status: 'FAILED' });
+    return { ...base, message: 'Invalid stored rule; disabled.' };
+  }
+
+  const threshold = Number(parsed.parameters.thresholdAmount);
+  if (!Number.isFinite(threshold)) {
+    await updateActiveRule(rule.id, { status: 'FAILED' });
+    return { ...base, message: 'Threshold is not a number; rule disabled.' };
+  }
+
+  const balance = await getEthBalance();
+  if (balance === null) {
+    await updateActiveRule(rule.id, { last_checked_at: new Date().toISOString() });
+    return { ...base, message: 'Balance unavailable; skipped this tick.' };
+  }
+
+  if (balance < threshold) {
+    await updateActiveRule(rule.id, { last_checked_at: new Date().toISOString() });
+    return { ...base, message: `BALANCE_ABOVE not triggered (${balance} ETH vs ${threshold} ETH).` };
+  }
+
+  const guard = await checkSufficientBalance(parsed.parameters.transferAmount);
+  if (!guard.ok) {
+    await updateActiveRule(rule.id, { last_checked_at: new Date().toISOString() });
+    return { ...base, message: `${guard.reason || 'Insufficient balance'} Skipped this fire.` };
+  }
+
+  await broadcastTransfer(parsed, rule.session_id);
+  return {
+    ...base,
+    fired: true,
+    message: `BALANCE_ABOVE fired (${balance} ETH vs ${threshold} ETH); transfer broadcast.`,
+  };
+}
+
 export async function GET(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -198,6 +243,8 @@ export async function GET(request: NextRequest) {
             fired: false,
             message: 'Skipped: price feed unavailable.',
           });
+        } else if (rule.rule_type === 'BALANCE_ABOVE') {
+          results.push(await evaluateBalance(rule));
         } else {
           await updateActiveRule(rule.id, { last_checked_at: new Date().toISOString() });
           results.push({
