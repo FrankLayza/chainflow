@@ -1,7 +1,7 @@
 export interface PresetRule {
   id: string;
   title: string;
-  category: 'transfer';
+  category: 'transfer' | 'scheduled' | 'price' | 'balance';
   promptText: string;
   iconName: string;
   description: string;
@@ -31,5 +31,13 @@ export const PRESET_RULES: PresetRule[] = [
     promptText: 'Transfer 0.01 ETH to 0xd2107C0e5fd43faDd5D3200F6084C3786a83A7A1',
     iconName: 'ArrowUpRight',
     description: 'Send 0.01 ETH immediately to the test address',
+  },
+  {
+    id: 'preset-recurring',
+    title: 'Recurring Transfer',
+    category: 'scheduled',
+    promptText: 'Send 0.001 ETH to 0xd2107C0e5fd43faDd5D3200F6084C3786a83A7A1 every 2 minutes',
+    iconName: 'RefreshCw',
+    description: 'Arms a rule that fires every 2 minutes via the cron evaluator',
   },
 ];
