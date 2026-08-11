@@ -1,27 +1,25 @@
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
-import { executeTransfer } from '@/lib/keeperhub/client';
-import { DEFAULT_CHAIN_ID } from '@/lib/keeperhub/config';
 import { broadcastTransfer } from '@/lib/keeperhub/broadcast';
 import { checkSufficientBalance } from '@/lib/keeperhub/balance';
 import { registerActiveRule, countActiveRules } from '@/repositories/audit-repository';
 import { resolveSessionId } from '@/lib/session';
 import { checkRateLimit, LIMITS } from '@/lib/rate-limit';
 import { isDeferred } from '@/lib/rule-disposition';
-import { ParsedRule } from '@/types/rule';
+import { ParsedRuleSchema } from '@/types/rule';
 import { formatInterval } from '@/lib/format';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { rule, simulate } = body as { rule: ParsedRule; simulate?: boolean };
 
-    if (!rule || !rule.parameters) {
+    const parsed = ParsedRuleSchema.safeParse((body as { rule?: unknown }).rule);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Valid rule with parameters is required' },
+        { error: parsed.error.issues[0]?.message || 'Invalid rule' },
         { status: 400 }
       );
     }
+    const rule = parsed.data;
 
     const sessionId = await resolveSessionId();
     const { targetAddress, transferAmount } = rule.parameters;
@@ -48,24 +46,6 @@ export async function POST(request: Request) {
         registered: true,
         message,
         activeRule,
-      });
-    }
-
-    if (simulate) {
-      const khResponse = await executeTransfer(
-        {
-          chainId: DEFAULT_CHAIN_ID,
-          recipientAddress: targetAddress,
-          amount: transferAmount,
-          simulate: true,
-        },
-        crypto.randomUUID()
-      );
-
-      return NextResponse.json({
-        success: true,
-        status: 'SIMULATED',
-        khResponse,
       });
     }
 
