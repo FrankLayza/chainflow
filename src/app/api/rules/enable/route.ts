@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getActiveRule, updateActiveRule } from '@/repositories/audit-repository';
+import { getActiveRule, updateActiveRule, countActiveRules } from '@/repositories/audit-repository';
 import { resolveSessionId } from '@/lib/session';
+import { LIMITS } from '@/lib/rate-limit';
 
 export async function POST(request: Request) {
   try {
@@ -20,6 +21,14 @@ export async function POST(request: Request) {
 
     if (rule.status === 'ACTIVE') {
       return NextResponse.json({ success: true, alreadyActive: true });
+    }
+
+    const activeCount = await countActiveRules(sessionId);
+    if (activeCount >= LIMITS.activeRules) {
+      return NextResponse.json(
+        { error: `Active rule limit (${LIMITS.activeRules}) reached for this session.` },
+        { status: 429 }
+      );
     }
 
     await updateActiveRule(ruleId, { status: 'ACTIVE' });

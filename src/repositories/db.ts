@@ -81,6 +81,12 @@ const TABLES = [
       last_executed_at  TEXT,
       created_at        TEXT NOT NULL DEFAULT (datetime('now'))
     )`,
+  `CREATE TABLE IF NOT EXISTS rate_limit_events (
+      id          TEXT PRIMARY KEY,
+      session_id  TEXT NOT NULL,
+      bucket      TEXT NOT NULL,
+      created_at  INTEGER NOT NULL
+    )`,
 ];
 
 // Separate from TABLES: these reference session_id, which on a pre-existing
@@ -88,6 +94,7 @@ const TABLES = [
 const INDEXES = [
   `CREATE INDEX IF NOT EXISTS idx_audit_records_session ON audit_records(session_id, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_active_rules_session ON active_rules(session_id, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_rate_limit_lookup ON rate_limit_events(session_id, bucket, created_at ASC)`,
 ];
 
 /**

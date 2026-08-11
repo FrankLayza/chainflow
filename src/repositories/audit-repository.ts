@@ -289,6 +289,22 @@ export async function getQueuedActiveRules(): Promise<ActiveRule[]> {
   return result.rows as unknown as ActiveRule[];
 }
 
+/**
+ * A hard ceiling on armed rules per session. Prevents one caller from flooding
+ * the queue with rules the cron would then fire at the shared wallet each tick.
+ */
+export async function countActiveRules(sessionId?: string): Promise<number> {
+  if (!sessionId) return 0;
+  const db = getDb();
+  await ensureSchema();
+  const result = await db.execute({
+    sql: `SELECT COUNT(*) AS n FROM active_rules
+          WHERE session_id = :session_id AND status = 'ACTIVE'`,
+    args: { session_id: sessionId },
+  });
+  return Number(result.rows[0]?.n ?? 0);
+}
+
 export async function listAllRules(sessionId?: string): Promise<ActiveRule[]> {
   if (!sessionId) return [];
   const db = getDb();

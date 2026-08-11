@@ -4,8 +4,9 @@ import { executeTransfer } from '@/lib/keeperhub/client';
 import { DEFAULT_CHAIN_ID } from '@/lib/keeperhub/config';
 import { broadcastTransfer } from '@/lib/keeperhub/broadcast';
 import { checkSufficientBalance } from '@/lib/keeperhub/balance';
-import { registerActiveRule } from '@/repositories/audit-repository';
+import { registerActiveRule, countActiveRules } from '@/repositories/audit-repository';
 import { resolveSessionId } from '@/lib/session';
+import { checkRateLimit, LIMITS } from '@/lib/rate-limit';
 import { ParsedRule } from '@/types/rule';
 import { formatInterval } from '@/lib/format';
 
@@ -30,6 +31,14 @@ export async function POST(request: Request) {
     // let the cron evaluator fire the transfer when the schedule or price
     // condition is met. Any other rule executes immediately.
     if (DEFERRED_TRIGGERS.has(rule.ruleType)) {
+      const activeCount = await countActiveRules(sessionId);
+      if (activeCount >= LIMITS.activeRules) {
+        return NextResponse.json(
+          { error: `Active rule limit (${LIMITS.activeRules}) reached for this session.` },
+          { status: 429 }
+        );
+      }
+
       const activeRule = await registerActiveRule(rule, sessionId);
       const message =
         rule.ruleType === 'SCHEDULED_INTERVAL'
@@ -59,6 +68,33 @@ export async function POST(request: Request) {
         status: 'SIMULATED',
         khResponse,
       });
+    }
+
+    const cooldown = await checkRateLimit(
+      sessionId,
+      'broadcast-cooldown',
+      1,
+      LIMITS.broadcastCooldownMs
+    );
+    if (!cooldown.ok) {
+      return NextResponse.json(
+        {
+          error: 'Broadcast rate limited: please wait before sending another transfer.',
+          retryAfterMs: cooldown.retryAfterMs,
+        },
+        { status: 429 }
+      );
+    }
+
+    const budget = await checkRateLimit(sessionId, 'broadcast-budget', LIMITS.broadcastsPerHour, 3600_000);
+    if (!budget.ok) {
+      return NextResponse.json(
+        {
+          error: `Broadcast limit reached (${LIMITS.broadcastsPerHour}/hour).`,
+          retryAfterMs: budget.retryAfterMs,
+        },
+        { status: 429 }
+      );
     }
 
     const guard = await checkSufficientBalance(transferAmount);
