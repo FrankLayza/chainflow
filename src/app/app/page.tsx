@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { TopBar } from '@/components/layout/TopBar';
+import { ActivityDrawer } from '@/components/layout/ActivityDrawer';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { AuditDashboard } from '@/components/dashboard/AuditDashboard';
 import {
@@ -12,7 +14,7 @@ import {
   WalletInfo,
 } from '@/types/rule';
 import { Async } from '@/types/async';
-import { cn } from '@/lib/utils';
+import { EASE_OUT } from '@/lib/ease';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -28,9 +30,10 @@ export default function AppPage() {
   const [isExecuting, setIsExecuting] = useState(false);
   const [auditFetching, setAuditFetching] = useState(true);
   const [auditRefreshKey, setAuditRefreshKey] = useState(0);
-  const [mobileTab, setMobileTab] = useState<'chat' | 'activity'>('chat');
+  const [activityOpen, setActivityOpen] = useState(false);
   const [unseenActivity, setUnseenActivity] = useState(false);
   const [initialPrompt, setInitialPrompt] = useState<string | null>(null);
+  const reduce = useReducedMotion() ?? false;
 
   // Read `?rule=` from the landing page's use-case links. Done with
   // window.location rather than useSearchParams so this route stays static —
@@ -196,52 +199,26 @@ export default function AppPage() {
     setAuditRefreshKey((key) => key + 1);
   }, []);
 
-  const executionCount = audit.kind === 'ready' ? audit.data.executions.length : 0;
+  const openActivity = useCallback(() => {
+    setActivityOpen(true);
+    setUnseenActivity(false);
+  }, []);
 
   return (
     <main className="h-dvh w-screen bg-gray-950 text-white font-sans overflow-hidden flex flex-col">
-      <TopBar wallet={wallet} />
+      <TopBar
+        wallet={wallet}
+        activityOpen={activityOpen}
+        onToggleActivity={() => (activityOpen ? setActivityOpen(false) : openActivity())}
+        unseenActivity={unseenActivity}
+      />
 
-      <div className="lg:hidden flex gap-1 p-1 mx-4 mt-3 bg-gray-900 rounded-xl border border-white/[0.06]">
-        {(['chat', 'activity'] as const).map((tab) => {
-          const isActive = mobileTab === tab;
-          return (
-            <button
-              key={tab}
-              type="button"
-              aria-pressed={isActive}
-              onClick={() => {
-                setMobileTab(tab);
-                if (tab === 'activity') setUnseenActivity(false);
-              }}
-              className={cn(
-                'flex-1 rounded-[10px] py-2 text-[13px] font-medium cursor-pointer',
-                'transition-[background-color,color] duration-150 ease-out',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50',
-                'focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950',
-                isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white',
-              )}
-            >
-              <span className="inline-flex items-center justify-center gap-1.5">
-                {tab === 'chat' ? 'Chat' : 'Activity'}
-                {tab === 'activity' && executionCount > 0 && (
-                  <span className="font-mono text-xs text-gray-500">{executionCount}</span>
-                )}
-                {tab === 'activity' && unseenActivity && !isActive && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-                )}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex-1 min-h-0 w-full flex">
-        <div
-          className={cn(
-            'flex-1 min-w-0',
-            mobileTab !== 'chat' && 'hidden lg:block',
-          )}
+      <div className="relative flex-1 min-h-0">
+        <motion.div
+          className="h-full w-full"
+          initial={false}
+          animate={{ scale: activityOpen ? 0.985 : 1 }}
+          transition={{ duration: reduce ? 0 : 0.3, ease: EASE_OUT }}
         >
           <ChatPanel
             onParsePrompt={parsePrompt}
@@ -250,22 +227,18 @@ export default function AppPage() {
             isExecuting={isExecuting}
             initialPrompt={initialPrompt}
           />
-        </div>
+        </motion.div>
 
-        <aside
-          className={cn(
-            'shrink-0 lg:w-[420px] lg:border-l lg:border-white/[0.06]',
-            mobileTab !== 'activity' ? 'hidden lg:block' : 'flex-1 min-w-0',
-          )}
-        >
+        <ActivityDrawer open={activityOpen} onClose={() => setActivityOpen(false)}>
           <AuditDashboard
             audit={audit}
             onRefresh={refreshAudit}
             isRefreshing={auditFetching}
             onDisableRule={disableRule}
             onEnableRule={enableRule}
+            onClose={() => setActivityOpen(false)}
           />
-        </aside>
+        </ActivityDrawer>
       </div>
     </main>
   );

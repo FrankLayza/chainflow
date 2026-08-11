@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, Ban, Play } from "lucide-react";
+import { AlertTriangle, Ban, Play, X } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { MonoValue } from "@/components/ui/MonoValue";
 import { PullToRefresh } from "@/components/motion/pull-to-refresh";
@@ -23,7 +23,11 @@ interface AuditDashboardProps {
   onDisableRule?: (ruleId: string) => Promise<void>;
   /** Re-enables a paused rule; the caller refreshes the list after. */
   onEnableRule?: (ruleId: string) => Promise<void>;
+  /** Renders a close affordance in the header when shown inside the drawer. */
+  onClose?: () => void;
 }
+
+type Category = "rules" | "executions";
 
 const ghostButton = cn(
   "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] cursor-pointer",
@@ -190,10 +194,20 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
   isRefreshing,
   onDisableRule,
   onEnableRule,
+  onClose,
 }) => {
   const isLoading = audit.kind === "loading";
   const [disablingId, setDisablingId] = React.useState<string | null>(null);
   const [enablingId, setEnablingId] = React.useState<string | null>(null);
+  const [category, setCategory] = React.useState<Category>("rules");
+
+  const rulesCount = audit.kind === "ready" ? audit.data.rules.length : 0;
+  const executionsCount =
+    audit.kind === "ready" ? audit.data.executions.length : 0;
+  const categories: { id: Category; label: string; count: number }[] = [
+    { id: "rules", label: "Parsed rules", count: rulesCount },
+    { id: "executions", label: "Executions", count: executionsCount },
+  ];
 
   return (
     <div className="w-full h-full flex flex-col bg-gray-900">
@@ -204,7 +218,62 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
             Executions recorded on Sepolia&ensp;·&ensp;pull to refresh
           </p>
         </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close activity"
+            className={cn(
+              "shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-[10px] cursor-pointer",
+              "border border-white/[0.08] text-gray-400 hover:text-white hover:border-white/[0.15]",
+              "transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50",
+              "focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900",
+            )}
+          >
+            <X className="w-4 h-4" strokeWidth={2} aria-hidden />
+          </button>
+        )}
       </div>
+
+      {audit.kind !== "error" && (
+        <div className="shrink-0 px-4 pt-3 pb-2">
+          <div
+            className="flex gap-1 p-1 bg-gray-950 rounded-xl border border-white/[0.06]"
+            aria-label="Activity categories"
+          >
+            {categories.map((cat) => {
+              const isActive = category === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={() => setCategory(cat.id)}
+                  className={cn(
+                    "flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium cursor-pointer",
+                    "transition-[background-color,color] duration-150 ease-out",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50",
+                    isActive
+                      ? "bg-gray-700 text-white"
+                      : "text-gray-400 hover:text-white",
+                  )}
+                >
+                  {cat.label}
+                  <span
+                    className={cn(
+                      "font-mono text-xs",
+                      isActive ? "text-gray-300" : "text-gray-500",
+                    )}
+                  >
+                    {cat.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <PullToRefresh
         onRefresh={onRefresh ?? (() => {})}
@@ -234,78 +303,77 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
               </button>
             )}
           </div>
+        ) : category === "rules" ? (
+          <section>
+            <SectionLabel>
+              Parsed rules
+              {audit.kind === "ready" ? ` (${audit.data.rules.length})` : ""}
+            </SectionLabel>
+
+            {isLoading ? (
+              <div className="space-y-2">
+                <SkeletonRow />
+                <SkeletonRow />
+              </div>
+            ) : audit.data.rules.length === 0 ? (
+              <p className="text-[13px] text-gray-400">
+                Nothing parsed yet. Describe a transfer in chat.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {audit.data.rules.map((rule, i) => (
+                  <RuleRow
+                    key={rule.id || i}
+                    rule={rule}
+                    onDisable={
+                      onDisableRule
+                        ? (id) => {
+                            setDisablingId(id);
+                            void onDisableRule(id).finally(() => setDisablingId(null));
+                          }
+                        : undefined
+                    }
+                    onEnable={
+                      onEnableRule
+                        ? (id) => {
+                            setEnablingId(id);
+                            void onEnableRule(id).finally(() => setEnablingId(null));
+                          }
+                        : undefined
+                    }
+                    disabling={disablingId === (rule.id || String(i))}
+                    enabling={enablingId === (rule.id || String(i))}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
         ) : (
-          <>
-            <section>
-              <SectionLabel>
-                Parsed rules{audit.kind === "ready" ? ` (${audit.data.rules.length})` : ""}
-              </SectionLabel>
+          <section>
+            <SectionLabel>
+              Executions
+              {audit.kind === "ready" ? ` (${audit.data.executions.length})` : ""}
+            </SectionLabel>
 
-              {isLoading ? (
-                <div className="space-y-2">
-                  <SkeletonRow />
-                  <SkeletonRow />
-                </div>
-              ) : audit.data.rules.length === 0 ? (
-                <p className="text-[13px] text-gray-400">
-                  Nothing parsed yet. Describe a transfer in chat.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {audit.data.rules.map((rule, i) => (
-                    <RuleRow
-                      key={rule.id || i}
-                      rule={rule}
-                      onDisable={
-                        onDisableRule
-                          ? (id) => {
-                              setDisablingId(id);
-                              void onDisableRule(id).finally(() => setDisablingId(null));
-                            }
-                          : undefined
-                      }
-                      onEnable={
-                        onEnableRule
-                          ? (id) => {
-                              setEnablingId(id);
-                              void onEnableRule(id).finally(() => setEnablingId(null));
-                            }
-                          : undefined
-                      }
-                      disabling={disablingId === (rule.id || String(i))}
-                      enabling={enablingId === (rule.id || String(i))}
-                    />
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section>
-              <SectionLabel>
-                Executions
-                {audit.kind === "ready" ? ` (${audit.data.executions.length})` : ""}
-              </SectionLabel>
-
-              {isLoading ? (
-                <div className="space-y-2">
-                  <SkeletonRow />
-                  <SkeletonRow />
-                  <SkeletonRow />
-                </div>
-              ) : audit.data.executions.length === 0 ? (
-                <p className="text-[13px] text-gray-400 text-pretty">
-                  No executions yet. Confirm a rule in chat and the receipt lands
-                  here.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {audit.data.executions.map((record) => (
-                    <ExecutionRow key={record.id} record={record} />
-                  ))}
-                </ul>
-              )}
-            </section>
-          </>
+            {isLoading ? (
+              <div className="space-y-2">
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+              </div>
+            ) : audit.data.executions.length === 0 ? (
+              <p className="text-[13px] text-gray-400 text-pretty">
+                No executions yet. Confirm a rule in chat and the receipt lands
+                here.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {audit.data.executions.map((record) => (
+                  <ExecutionRow key={record.id} record={record} />
+                ))}
+              </ul>
+            )}
+          </section>
         )}
       </PullToRefresh>
     </div>
