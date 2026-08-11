@@ -7,10 +7,9 @@ import { checkSufficientBalance } from '@/lib/keeperhub/balance';
 import { registerActiveRule, countActiveRules } from '@/repositories/audit-repository';
 import { resolveSessionId } from '@/lib/session';
 import { checkRateLimit, LIMITS } from '@/lib/rate-limit';
+import { isDeferred } from '@/lib/rule-disposition';
 import { ParsedRule } from '@/types/rule';
 import { formatInterval } from '@/lib/format';
-
-const DEFERRED_TRIGGERS = new Set(['PRICE_BELOW', 'PRICE_ABOVE', 'SCHEDULED_INTERVAL']);
 
 export async function POST(request: Request) {
   try {
@@ -27,10 +26,10 @@ export async function POST(request: Request) {
     const sessionId = await resolveSessionId();
     const { targetAddress, transferAmount } = rule.parameters;
 
-    // Scheduled and price rules do not broadcast on confirmation — they arm and
-    // let the cron evaluator fire the transfer when the schedule or price
-    // condition is met. Any other rule executes immediately.
-    if (DEFERRED_TRIGGERS.has(rule.ruleType)) {
+    // Deferred triggers do not broadcast on confirmation — they arm and let the
+    // cron evaluator fire the transfer when the condition is met. Any other
+    // rule executes immediately.
+    if (isDeferred(rule.ruleType)) {
       const activeCount = await countActiveRules(sessionId);
       if (activeCount >= LIMITS.activeRules) {
         return NextResponse.json(

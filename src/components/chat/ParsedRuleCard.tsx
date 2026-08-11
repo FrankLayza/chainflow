@@ -12,6 +12,7 @@ import {
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { FieldGrid, type Field } from "@/components/ui/FieldGrid";
 import { formatElapsed, formatGas, formatInterval, truncateAddress } from "@/lib/format";
+import { isDeferred } from "@/lib/rule-disposition";
 import { cn } from "@/lib/utils";
 import type { ExecState, ParsedRule, SimState } from "@/types/rule";
 
@@ -82,11 +83,8 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
   const broadcastRef = React.useRef<HTMLButtonElement>(null);
   const elapsed = useElapsed(exec === "executing");
   // These rules arm and fire later (cron), rather than broadcasting on confirm.
-  const isDeferred =
-    rule.ruleType === "PRICE_BELOW" ||
-    rule.ruleType === "PRICE_ABOVE" ||
-    rule.ruleType === "SCHEDULED_INTERVAL";
-  const deferredHint = isDeferred
+  const deferred = isDeferred(rule.ruleType);
+  const deferredHint = deferred
     ? rule.ruleType === "SCHEDULED_INTERVAL"
       ? `It fires every ${formatInterval(rule.parameters)}.`
       : "It fires when the price crosses the threshold."
@@ -235,7 +233,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
             className="rounded-[10px] border border-violet-500/30 bg-violet-500/5 p-3"
           >
             <p className="text-body-sm text-white mb-3">
-              {isDeferred
+              {deferred
                 ? `Arms this rule. Nothing broadcasts now — ${deferredHint}`
                 : "This broadcasts to Ethereum Sepolia. It cannot be undone."}
             </p>
@@ -250,7 +248,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
                 disabled={globallyLocked}
                 className={primaryButton}
               >
-                {isDeferred ? (
+                {deferred ? (
                   "Arm rule"
                 ) : (
                   <>
@@ -278,7 +276,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
                   <span className="absolute inset-0 rounded-full bg-violet-500 opacity-75 motion-safe:animate-ping" />
                   <span className="relative w-2 h-2 rounded-full bg-violet-500" />
                 </span>
-                {isDeferred ? "Arming rule" : "Broadcasting to Sepolia"}
+                {deferred ? "Arming rule" : "Broadcasting to Sepolia"}
               </span>
               <span className="font-mono text-xs text-gray-500 tabular-nums">
                 {formatElapsed(elapsed)}
@@ -286,7 +284,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
             </div>
             <div className="flex items-center gap-2 text-body-sm text-gray-500">
               <span className="w-2 h-2 rounded-full border border-gray-600" />
-              {isDeferred ? "Registering trigger" : "Waiting for confirmation"}
+              {deferred ? "Registering trigger" : "Waiting for confirmation"}
             </div>
           </motion.div>
         ) : exec === "done" ? (
@@ -341,7 +339,7 @@ export const ParsedRuleCard: React.FC<ParsedRuleCardProps> = ({
                     ? "Simulating…"
                     : sim.phase === "done" && !sim.simulation.passed
                       ? "Blocked"
-                      : isDeferred
+                      : deferred
                         ? "Arm rule"
                         : "Confirm & execute"}
                 </button>
