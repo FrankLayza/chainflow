@@ -90,14 +90,14 @@ const GooeyStack = React.forwardRef<HTMLDivElement, GooeyStackProps>(
     }, [n]);
 
     // The stack keeps a constant height (the expanded extent) and the anchor
-    // (last child) stays pinned to the bottom, so it never moves while the
-    // others slide down into it.
-    const heightsBelow = (i: number) => {
+    // (first child — the default preset) stays pinned to the top, so it never
+    // moves while the others slide up into it: a dropped stack hanging from
+    // the header.
+    const heightsAbove = (i: number) => {
       let d = 0;
-      for (let j = i + 1; j < n; j++) d += heights[j] ?? 0;
+      for (let j = 0; j < i; j++) d += heights[j] ?? 0;
       return d;
     };
-    const cardsBelow = (i: number) => n - 1 - i;
 
     const expandedTotal =
       heights.reduce((s, h) => s + h, 0) + Math.max(0, n - 1) * expandedGap;
@@ -118,13 +118,13 @@ const GooeyStack = React.forwardRef<HTMLDivElement, GooeyStackProps>(
     // The native `<div>` cards below are shown ONLY under prefers-reduced-motion
     // (goo hidden), where there is no filter and they are the crisp fallback.
 
-    // Target transform for card `i`. rank = distance from the anchor.
+    // Target transform for card `i`. rank = distance from the top anchor.
     const stateOf = (i: number) => {
-      const rank = cardsBelow(i);
-      // Bottom offset for this card at the current gap; anchor stays at 0.
-      const bottomExpanded = heightsBelow(i) + rank * expandedGap;
-      const bottomNow = heightsBelow(i) + rank * g;
-      const y = bottomExpanded - bottomNow; // slide down as the gap shrinks
+      const rank = i;
+      // Top offset for this card at the current gap; anchor stays at 0.
+      const topExpanded = heightsAbove(i) + rank * expandedGap;
+      const topNow = heightsAbove(i) + rank * g;
+      const y = topNow - topExpanded; // slide up into the anchor as the gap shrinks
       if (rank === 0) {
         return { y: 0, scale: 1, opacity: 1, silOpacity: 1, blur: 0 };
       }
@@ -140,8 +140,11 @@ const GooeyStack = React.forwardRef<HTMLDivElement, GooeyStackProps>(
       };
     };
 
+    // Rest-position bottom of card `i` (expanded), measured from the container
+    // bottom. The top anchor sits at the container top and each card drops
+    // below it.
     const bottomOf = (i: number) =>
-      heightsBelow(i) + cardsBelow(i) * expandedGap;
+      expandedTotal - (heightsAbove(i) + i * expandedGap + (heights[i] ?? 0));
     const transition = reduce ? { duration: 0 } : SPRING;
 
     return (

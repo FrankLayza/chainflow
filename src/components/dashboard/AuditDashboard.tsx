@@ -1,9 +1,10 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, Ban, Play, RefreshCw } from "lucide-react";
+import { AlertTriangle, Ban, Play } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { MonoValue } from "@/components/ui/MonoValue";
+import { PullToRefresh } from "@/components/motion/pull-to-refresh";
 import {
   deriveReceiptStatus,
   formatGas,
@@ -195,33 +196,23 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
   const [enablingId, setEnablingId] = React.useState<string | null>(null);
 
   return (
-    <div className="w-full h-full flex flex-col bg-gray-900 overflow-y-auto">
+    <div className="w-full h-full flex flex-col bg-gray-900">
       <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-white/[0.06]">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-white">Activity</h2>
           <p className="text-xs text-gray-400 mt-0.5">
-            Executions recorded on Sepolia
+            Executions recorded on Sepolia&ensp;·&ensp;pull to refresh
           </p>
         </div>
-
-        {onRefresh && (
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={isLoading || isRefreshing}
-            className={ghostButton}
-          >
-            <RefreshCw
-              className={cn("w-3 h-3", (isLoading || isRefreshing) && "motion-safe:animate-spin")}
-              strokeWidth={1.5}
-              aria-hidden
-            />
-            Refresh
-          </button>
-        )}
       </div>
 
-      <div className="flex-1 min-h-0 px-6 py-5 space-y-8">
+      <PullToRefresh
+        onRefresh={onRefresh ?? (() => {})}
+        refreshing={isRefreshing}
+        disabled={!onRefresh}
+        className="flex-1 min-h-0 bg-gray-900"
+        contentClassName="px-6 py-5 space-y-8"
+      >
         {audit.kind === "error" ? (
           <div className="rounded-xl bg-danger/10 border border-danger/30 p-4">
             <div className="flex items-start gap-2.5">
@@ -316,7 +307,7 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
             </section>
           </>
         )}
-      </div>
+      </PullToRefresh>
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { AlertTriangle, Loader2, Send } from "lucide-react";
 import { ParsedRuleCard } from "./ParsedRuleCard";
 import { ExecutionReceiptCard } from "./ExecutionReceiptCard";
 import { ChatEmptyState } from "./ChatEmptyState";
+import { MessageScroller } from "@/components/agents/message-scroller";
 import { FieldGrid } from "@/components/ui/FieldGrid";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { cn } from "@/lib/utils";
@@ -58,7 +59,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const [input, setInput] = React.useState("");
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [isParsing, setIsParsing] = React.useState(false);
-  const endRef = React.useRef<HTMLDivElement>(null);
   const seededRef = React.useRef(false);
 
   // Seeds once. A previous version keyed this to a prop and re-fired on every
@@ -68,17 +68,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     seededRef.current = true;
     setInput(initialPrompt);
   }, [initialPrompt]);
-
-  // Without this the receipt — the artifact the whole product exists to produce
-  // — can append below the fold and never be seen.
-  React.useEffect(() => {
-    if (messages.length === 0) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    endRef.current?.scrollIntoView({
-      behavior: reduce ? "auto" : "smooth",
-      block: "end",
-    });
-  }, [messages]);
 
   const patch = React.useCallback((id: string, next: Partial<Message>) => {
     setMessages((prev) =>
@@ -220,15 +209,24 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   return (
     <div className="w-full h-full flex flex-col bg-gray-950 overflow-hidden">
-      <div className="flex-1 overflow-y-auto">
-        <div className="w-full max-w-3xl mx-auto px-6 py-6">
-          {messages.length === 0 ? (
-            <ChatEmptyState onPick={send} />
-          ) : (
-            <div className="space-y-5">
-              {messages.map((msg) => (
+      <MessageScroller
+        navigation="rail"
+        busy={isParsing}
+        label="Chat transcript"
+        className="flex-1 min-h-0"
+        contentClassName="w-full max-w-3xl mx-auto px-6 py-6"
+      >
+        {messages.length === 0 ? (
+          <ChatEmptyState onPick={send} />
+        ) : (
+          <div className="space-y-5">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                data-slot="message"
+                data-from={msg.kind === "user" ? "user" : "assistant"}
+              >
                 <MessageRow
-                  key={msg.id}
                   msg={msg}
                   globallyLocked={Boolean(isExecuting)}
                   onConfirm={() => patch(msg.id, { exec: "confirming" })}
@@ -245,12 +243,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   }
                   onEditPrompt={(p) => setInput(p)}
                 />
-              ))}
-              <div ref={endRef} />
-            </div>
-          )}
-        </div>
-      </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </MessageScroller>
 
       <div className="w-full shrink-0 border-t border-white/[0.06]">
         <div className="w-full max-w-3xl mx-auto px-6 py-4">
@@ -330,7 +327,10 @@ function MessageRow({
   if (msg.kind === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[80%] bg-gray-800 border border-white/[0.06] rounded-2xl px-4 py-3">
+        <div
+          data-slot="message-content"
+          className="max-w-[80%] bg-gray-800 border border-white/[0.06] rounded-2xl px-4 py-3"
+        >
           <p className="text-sm text-white leading-relaxed">{msg.text}</p>
           <span className="mt-1 block font-mono text-[11px] text-gray-500 text-right">
             {msg.at}

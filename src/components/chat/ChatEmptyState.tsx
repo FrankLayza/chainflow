@@ -62,7 +62,7 @@ export function ChatEmptyState({ onPick }: { onPick: (prompt: string) => void })
         ))}
       </motion.ol>
 
-      <motion.div {...item(4)} className="mt-8">
+      <motion.div {...item(4)} className="mt-5">
         <div className="flex items-center justify-between mb-3">
           <span className="block text-xs font-mono uppercase tracking-wider text-gray-400">
             START WITH ONE OF THESE
