@@ -3,7 +3,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { TopBar } from '@/components/layout/TopBar';
-import { ActivityDrawer } from '@/components/layout/ActivityDrawer';
+import {
+  ActivityDrawer,
+  ACTIVITY_DRAWER_WIDTH,
+} from '@/components/layout/ActivityDrawer';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { AuditDashboard } from '@/components/dashboard/AuditDashboard';
 import {
@@ -15,6 +18,7 @@ import {
 } from '@/types/rule';
 import { Async } from '@/types/async';
 import { EASE_OUT } from '@/lib/ease';
+import { useMediaQuery } from '@/lib/hooks/use-media-query';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -34,6 +38,9 @@ export default function AppPage() {
   const [unseenActivity, setUnseenActivity] = useState(false);
   const [initialPrompt, setInitialPrompt] = useState<string | null>(null);
   const reduce = useReducedMotion() ?? false;
+  // Recede the chat only when the drawer sits beside it; on small screens the
+  // drawer covers the full width so the chat stays put.
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   // Read `?rule=` from the landing page's use-case links. Done with
   // window.location rather than useSearchParams so this route stays static —
@@ -217,8 +224,8 @@ export default function AppPage() {
         <motion.div
           className="h-full w-full"
           initial={false}
-          animate={{ scale: activityOpen ? 0.985 : 1 }}
-          transition={{ duration: reduce ? 0 : 0.3, ease: EASE_OUT }}
+          animate={{ x: activityOpen && isDesktop ? -ACTIVITY_DRAWER_WIDTH / 2 : 0 }}
+          transition={{ duration: reduce ? 0 : 0.35, ease: EASE_OUT }}
         >
           <ChatPanel
             onParsePrompt={parsePrompt}
