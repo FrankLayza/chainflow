@@ -294,9 +294,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               )}
             </button>
           </form>
-          <p className="mt-2 text-[11px] text-gray-500">
-            Nothing broadcasts until you confirm.
-          </p>
         </div>
       </div>
     </div>
