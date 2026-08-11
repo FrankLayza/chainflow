@@ -1,7 +1,8 @@
 import { Client } from '@modelcontextprotocol/sdk/client';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp';
+import { getApiKey, getMcpEndpoint, getWalletIntegrationId } from './config';
 
-const MCP_ENDPOINT = process.env.KEEPERHUB_MCP_ENDPOINT || 'https://app.keeperhub.com/mcp';
+export { getWalletIntegrationId };
 
 export interface TransferArgs {
   chain_id: string;
@@ -22,22 +23,6 @@ interface MCPCallResult {
   content: { type: string; text?: string }[];
   isError?: boolean;
   structuredContent?: Record<string, unknown>;
-}
-
-function getApiKey(): string {
-  const key = process.env.KEEPERHUB_API_KEY || process.env.keeperhub_API_KEY || '';
-  if (!key) {
-    throw new Error('KEEPERHUB_API_KEY is missing from environment variables');
-  }
-  return key;
-}
-
-export function getWalletIntegrationId(): string {
-  const id = process.env.KEEPERHUB_WALLET_INTEGRATION_ID;
-  if (!id) {
-    throw new Error('KEEPERHUB_WALLET_INTEGRATION_ID is missing from environment variables');
-  }
-  return id;
 }
 
 function resultText(result: MCPCallResult): string {
@@ -64,7 +49,7 @@ export class KeeperHubMCPClient {
   }
 
   static async connect(): Promise<KeeperHubMCPClient> {
-    const transport = new StreamableHTTPClientTransport(new URL(MCP_ENDPOINT), {
+    const transport = new StreamableHTTPClientTransport(new URL(getMcpEndpoint()), {
       requestInit: {
         headers: { Authorization: `Bearer ${getApiKey()}` },
       },

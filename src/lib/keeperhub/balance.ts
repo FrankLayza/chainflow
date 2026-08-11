@@ -1,4 +1,5 @@
 import { KeeperHubMCPClient, getWalletIntegrationId } from '@/lib/keeperhub/mcp-client';
+import { getRpcUrl, getWalletAddress } from '@/lib/keeperhub/config';
 
 /**
  * Balance guard for on-chain transfers. Reads the demo wallet's ETH balance via
@@ -8,16 +9,9 @@ import { KeeperHubMCPClient, getWalletIntegrationId } from '@/lib/keeperhub/mcp-
  * blocking execution.
  */
 
-const WALLET_ADDRESS =
-  process.env.KEEPERHUB_WALLET_ADDRESS ||
-  process.env.NEXT_PUBLIC_KEEPERHUB_WALLET ||
-  process.env.keeperhub_wallet_address ||
-  '';
-
-const RPC_URL = process.env.SEPOLIA_RPC_URL || '';
-
 async function resolveSenderAddress(): Promise<string | null> {
-  if (WALLET_ADDRESS) return WALLET_ADDRESS;
+  const configured = getWalletAddress();
+  if (configured) return configured;
   try {
     const mcp = await KeeperHubMCPClient.connect();
     try {
@@ -34,7 +28,7 @@ async function resolveSenderAddress(): Promise<string | null> {
 }
 
 export async function getEthBalance(address?: string): Promise<number | null> {
-  if (!RPC_URL) {
+  if (!getRpcUrl()) {
     console.warn('SEPOLIA_RPC_URL is not configured; balance guard disabled.');
     return null;
   }
@@ -42,7 +36,7 @@ export async function getEthBalance(address?: string): Promise<number | null> {
   if (!target) return null;
 
   try {
-    const response = await fetch(RPC_URL, {
+    const response = await fetch(getRpcUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

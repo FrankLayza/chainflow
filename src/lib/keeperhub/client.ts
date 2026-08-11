@@ -26,17 +26,7 @@ export interface KeeperHubExecutionResponse {
   error?: string;
 }
 
-import { DEFAULT_CHAIN_ID } from './config';
-
-const KEEPERHUB_BASE_URL = 'https://app.keeperhub.com/api';
-
-function getApiKey(): string {
-  const key = process.env.KEEPERHUB_API_KEY || process.env.keeperhub_API_KEY || '';
-  if (!key) {
-    console.warn('Warning: KEEPERHUB_API_KEY is missing from environment variables');
-  }
-  return key;
-}
+import { DEFAULT_CHAIN_ID, getApiKey, getRestBaseUrl } from './config';
 
 /**
  * Execute or simulate a direct transfer via KeeperHub Direct Execution API
@@ -57,7 +47,7 @@ export async function executeTransfer(
     headers['Idempotency-Key'] = idempotencyKey;
   }
 
-  const response = await fetch(`${KEEPERHUB_BASE_URL}/execute/transfer`, {
+  const response = await fetch(`${getRestBaseUrl()}/execute/transfer`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
@@ -84,7 +74,7 @@ export async function getExecutionStatus(
 ): Promise<KeeperHubExecutionResponse> {
   const apiKey = getApiKey();
 
-  const response = await fetch(`${KEEPERHUB_BASE_URL}/execute/${executionId}/status`, {
+  const response = await fetch(`${getRestBaseUrl()}/execute/${executionId}/status`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${apiKey}`,

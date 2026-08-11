@@ -8,7 +8,12 @@ import {
 } from '@/repositories/audit-repository';
 import { getExecutionStatus } from '@/lib/keeperhub/client';
 import { resolveSessionId } from '@/lib/session';
-import { DEFAULT_CHAIN_ID, NETWORK_LABEL, explorerUrl as txExplorerUrl } from '@/lib/keeperhub/config';
+import {
+  DEFAULT_CHAIN_ID,
+  NETWORK_LABEL,
+  explorerUrl as txExplorerUrl,
+  getWalletAddress,
+} from '@/lib/keeperhub/config';
 
 async function reconcilePendingExecutions(sessionId: string): Promise<number> {
   const pending = await listPendingExecutions(sessionId);
@@ -59,8 +64,7 @@ export async function GET() {
     const rawRules = await listAllRules(sessionId);
     const rawExecutions = await listAuditRecords(sessionId);
 
-    const walletAddress =
-      process.env.KEEPERHUB_WALLET_ADDRESS || process.env.keeperhub_wallet_address || null;
+    const walletAddress = getWalletAddress();
 
     const rules = rawRules.map((r) => ({
       id: r.id,
