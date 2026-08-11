@@ -13,7 +13,8 @@ ChainFlow solves the "last mile" of agent execution: an agent can decide *what* 
   - **Recurring transfer** — "…every 2 minutes", evaluated by a pull-based cron job
   - **Price alert transfer** — "If ETH drops below $2,400…", checked against CoinGecko on each cron tick
   - **Balance trigger transfer** — "…when balance exceeds 2 ETH", checked with `eth_getBalance` on each cron tick
-- **Safety first** — every rule is parsed to a typed schema, simulated, and reviewed in a card before anything can broadcast. **Nothing broadcasts until you confirm.** Rules can be cancelled before arming and disabled after.
+- **Safety first** — every rule is parsed to a typed schema, simulated, and reviewed in a card before anything can broadcast. **Nothing broadcasts until you confirm.** Rules can be cancelled before arming and disabled after. Broadcasts are rate-limited per session (30s cooldown, 10/hour, 20 active rules).
+- **Reliable execution** — broadcasts go through a `TransferExecutor` seam that tries KeeperHub's MCP endpoint first and falls back to the REST API; a balance guard (`eth_getBalance`) refuses broadcasts the demo wallet can't fund.
 - **Audit log** — every execution is recorded with trigger, simulation, gas, status, and transaction hash, with a pull-to-refresh Activity tab.
 - **Execution receipts** — a confirmed KeeperHub transaction posts a receipt card straight into the chat thread.
 - **Message rail** — a scrollable preview rail lets you jump between messages in long threads (motion-reduced aware).
@@ -40,7 +41,9 @@ LLM parser → typed ParsedRule (Zod-validated)
   ↓  POST /api/simulate-rule
 Simulation review card → human confirmation
   ↓  POST /api/execute-rule
-KeeperHub direct-execution adapter (server-side only)
+Arm-or-broadcast, rate limited (server-side only)
+  ↓  TransferExecutor seam
+MCP-first, REST fallback on the KeeperHub API
   ↓  Testnet transfer, gas sponsored
 Receipt + tx hash → chat + Activity audit log
   ↓
@@ -62,7 +65,7 @@ src/
 │   └── api/
 │       ├── parse-rule/       # NL → ParsedRule
 │       ├── simulate-rule/    # Safe simulation
-│       ├── execute-rule/     # KeeperHub broadcast
+│       ├── execute-rule/     # Arm-or-broadcast, rate-limited, Zod-validated
 │       ├── rules/            # activate / disable / enable
 │       ├── audit-logs/       # Activity feed
 │       ├── wallet/           # Demo wallet info
@@ -77,9 +80,12 @@ src/
 │   └── ui/                   # FieldGrid, StatusBadge, …
 ├── lib/
 │   ├── ai/                   # Parser adapter + presets
-│   ├── keeperhub/            # KeeperHub client + mapper
-│   ├── db/                   # Turso/SQLite repository
-│   └── …                     # env, ease, utils, hooks
+│   ├── keeperhub/            # config, executor seam, broadcast, balance, client, mcp-client
+│   ├── rate-limit.ts         # Broadcast + active-rule limits per session
+│   ├── receipt.ts            # One source of truth for execution receipts
+│   ├── rule-disposition.ts   # arm-vs-broadcast decision for trigger types
+│   └── …                     # format, session, coingecko, ease, utils, hooks
+├── repositories/             # Turso/SQLite (db, audit-repository)
 └── types/rule.ts             # Domain types
 ```
 
@@ -105,9 +111,10 @@ See `.env.example` for the full annotated list. The important ones:
 |---|---|
 | `KEEPERHUB_API_KEY` | API key from app.keeperhub.com (grants the org's Turnkey wallet) |
 | `KEEPERHUB_WALLET_INTEGRATION_ID` | Wallet integration id |
-| `KEEPERHUB_WALLET_ADDRESS` | Demo wallet address (display only) |
+| `KEEPERHUB_WALLET_ADDRESS` | Demo wallet address (display only); `NEXT_PUBLIC_KEEPERHUB_WALLET` is also accepted |
 | `KEEPERHUB_CHAIN_ID` | Defaults to Ethereum Sepolia (`11155111`) |
 | `KEEPERHUB_MCP_ENDPOINT` | Defaults to `https://app.keeperhub.com/mcp` |
+| `KEEPERHUB_BASE_URL` | REST fallback API base; defaults to `https://app.keeperhub.com/api` |
 | `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` | Turso DB; unset locally → `file:src/data/chainflow.db` |
 | `SESSION_SECRET` | Signs the session cookie (required in production) |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | AI parser provider key |
@@ -150,9 +157,9 @@ Then point a scheduler at the cron route so scheduled, price, and balance rules 
 ## Security notes
 
 - Secrets live only in server environment variables — never in the browser bundle, code, or logs.
-- Recipient addresses are validated as checksummed EVM addresses; amounts as positive bounded integer strings (wei).
-- The server revalidates every parsed snapshot before execution; the transaction is built from the validated rule, never from free-form text.
-- Broadcasts require explicit human confirmation and pass through KeeperHub's reliability layer (retries, smart gas estimation, observability).
+- Recipient addresses are validated as EVM addresses; amounts as positive bounded strings.
+- The server revalidates every parsed snapshot with Zod before execution; the transaction is built from the validated rule, never from free-form text.
+- Broadcasts require explicit human confirmation, are rate-limited per session (cooldown + hourly budget + active-rule cap), and pass through KeeperHub's reliability layer (retries, smart gas estimation, observability).
 - The MVP is testnet-only and runs one shared, capped demo wallet — it is never a visitor's wallet.
 
 ## Links
