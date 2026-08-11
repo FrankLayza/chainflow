@@ -224,7 +224,7 @@ export default function AppPage() {
           onOpenChange={setActivityOpen}
           side="right"
           ariaLabel="Activity"
-          className="bg-gray-900 border-white/[0.06]"
+          className="w-[420px] bg-gray-900 border-white/[0.06]"
         >
           <AuditDashboard
             audit={audit}
