@@ -10,8 +10,6 @@ import type { WalletInfo } from "@/types/rule";
 import Link from "next/link";
 import Image from "next/image";
 
-export const ACTIVITY_DRAWER_ID = "activity-drawer";
-
 interface TopBarProps {
   wallet: Async<WalletInfo>;
   /** Whether the Activity drawer is open, so the toggle can show its active state. */
@@ -75,7 +73,6 @@ export const TopBar: React.FC<TopBarProps> = ({
               type="button"
               onClick={onToggleActivity}
               aria-expanded={activityOpen}
-              aria-controls={ACTIVITY_DRAWER_ID}
               className={cn(
                 "shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] cursor-pointer",
                 "text-xs font-medium border",

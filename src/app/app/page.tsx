@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { TopBar } from '@/components/layout/TopBar';
-import { ActivityDrawer } from '@/components/layout/ActivityDrawer';
+import { Drawer } from '@/components/motion/drawer';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { AuditDashboard } from '@/components/dashboard/AuditDashboard';
 import {
@@ -219,7 +219,13 @@ export default function AppPage() {
           initialPrompt={initialPrompt}
         />
 
-        <ActivityDrawer open={activityOpen} onClose={() => setActivityOpen(false)}>
+        <Drawer
+          open={activityOpen}
+          onOpenChange={setActivityOpen}
+          side="right"
+          ariaLabel="Activity"
+          className="bg-gray-900 border-white/[0.06]"
+        >
           <AuditDashboard
             audit={audit}
             onRefresh={refreshAudit}
@@ -228,7 +234,7 @@ export default function AppPage() {
             onEnableRule={enableRule}
             onClose={() => setActivityOpen(false)}
           />
-        </ActivityDrawer>
+        </Drawer>
       </div>
     </main>
   );
