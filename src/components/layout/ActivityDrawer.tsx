@@ -6,9 +6,6 @@ import { ACTIVITY_DRAWER_ID } from "@/components/layout/TopBar";
 import { EASE_DRAWER } from "@/lib/ease";
 import { cn } from "@/lib/utils";
 
-/** Desktop drawer width in px; the chat centers itself by half of this. */
-export const ACTIVITY_DRAWER_WIDTH = 420;
-
 interface ActivityDrawerProps {
   open: boolean;
   onClose: () => void;

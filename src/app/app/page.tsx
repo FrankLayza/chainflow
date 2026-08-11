@@ -1,12 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
 import { TopBar } from '@/components/layout/TopBar';
-import {
-  ActivityDrawer,
-  ACTIVITY_DRAWER_WIDTH,
-} from '@/components/layout/ActivityDrawer';
+import { ActivityDrawer } from '@/components/layout/ActivityDrawer';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { AuditDashboard } from '@/components/dashboard/AuditDashboard';
 import {
@@ -17,8 +13,6 @@ import {
   WalletInfo,
 } from '@/types/rule';
 import { Async } from '@/types/async';
-import { EASE_OUT } from '@/lib/ease';
-import { useMediaQuery } from '@/lib/hooks/use-media-query';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -37,10 +31,6 @@ export default function AppPage() {
   const [activityOpen, setActivityOpen] = useState(false);
   const [unseenActivity, setUnseenActivity] = useState(false);
   const [initialPrompt, setInitialPrompt] = useState<string | null>(null);
-  const reduce = useReducedMotion() ?? false;
-  // Recede the chat only when the drawer sits beside it; on small screens the
-  // drawer covers the full width so the chat stays put.
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   // Read `?rule=` from the landing page's use-case links. Done with
   // window.location rather than useSearchParams so this route stays static —
@@ -221,20 +211,13 @@ export default function AppPage() {
       />
 
       <div className="relative flex-1 min-h-0">
-        <motion.div
-          className="h-full w-full"
-          initial={false}
-          animate={{ x: activityOpen && isDesktop ? -ACTIVITY_DRAWER_WIDTH / 2 : 0 }}
-          transition={{ duration: reduce ? 0 : 0.35, ease: EASE_OUT }}
-        >
-          <ChatPanel
-            onParsePrompt={parsePrompt}
-            onSimulateRule={simulateRule}
-            onActivateRule={activateRule}
-            isExecuting={isExecuting}
-            initialPrompt={initialPrompt}
-          />
-        </motion.div>
+        <ChatPanel
+          onParsePrompt={parsePrompt}
+          onSimulateRule={simulateRule}
+          onActivateRule={activateRule}
+          isExecuting={isExecuting}
+          initialPrompt={initialPrompt}
+        />
 
         <ActivityDrawer open={activityOpen} onClose={() => setActivityOpen(false)}>
           <AuditDashboard
