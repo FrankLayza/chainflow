@@ -10,7 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ReceiptTone } from "@/lib/format";
+import type { ReceiptTone } from "@/lib/receipt";
 
 const toneStyles: Record<ReceiptTone, { className: string; Icon: LucideIcon }> = {
   confirmed: { className: "bg-success/15 text-success", Icon: CheckCircle2 },

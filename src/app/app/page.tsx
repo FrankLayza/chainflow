@@ -5,6 +5,7 @@ import { TopBar } from '@/components/layout/TopBar';
 import { Drawer } from '@/components/motion/drawer';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { AuditDashboard } from '@/components/dashboard/AuditDashboard';
+import { toReceipt } from '@/lib/receipt';
 import {
   AuditData,
   ExecutionReceipt,
@@ -151,20 +152,7 @@ export default function AppPage() {
         setAuditRefreshKey((key) => key + 1);
         setUnseenActivity(true);
 
-        return {
-          executionId: data?.executionId ?? undefined,
-          // No 'CONFIRMED' fallback: an unknown status must stay unknown so the
-          // receipt can render it honestly rather than claim success.
-          status: data?.registered
-            ? 'REGISTERED'
-            : data?.record?.status || data?.status || 'UNKNOWN',
-          registered: Boolean(data?.registered),
-          message: data?.message,
-          txHash: data?.record?.transaction_hash || data?.khResponse?.transactionHash,
-          explorerUrl: data?.record?.explorer_url || data?.khResponse?.transactionLink,
-          gasUsed: data?.record?.gas_used,
-          viaMcp: Boolean(data?.viaMcp),
-        };
+        return toReceipt(data);
       } finally {
         setIsExecuting(false);
       }

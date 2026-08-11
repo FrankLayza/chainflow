@@ -5,7 +5,8 @@ import { ShieldCheck } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { MonoValue } from "@/components/ui/MonoValue";
 import { FieldGrid, type Field } from "@/components/ui/FieldGrid";
-import { deriveReceiptStatus, formatGas } from "@/lib/format";
+import { deriveReceiptStatus } from "@/lib/receipt";
+import { formatGas } from "@/lib/format";
 import type { ExecutionReceipt } from "@/types/rule";
 
 /**

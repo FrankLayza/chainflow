@@ -5,12 +5,8 @@ import { AlertTriangle, Ban, Play, X } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { MonoValue } from "@/components/ui/MonoValue";
 import { PullToRefresh } from "@/components/motion/pull-to-refresh";
-import {
-  deriveReceiptStatus,
-  formatGas,
-  formatTimestamp,
-  truncateAddress,
-} from "@/lib/format";
+import { deriveReceiptStatus } from "@/lib/receipt";
+import { formatGas, formatTimestamp, truncateAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Async } from "@/types/async";
 import type { ActiveRuleView, AuditData, ExecutionRecord } from "@/types/rule";
