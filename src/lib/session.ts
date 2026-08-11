@@ -24,7 +24,7 @@ function secret(): string {
   // locally, never in a deployed environment.
   if (process.env.NODE_ENV === 'production') {
     throw new Error(
-      'SESSION_SECRET is required in production. Generate one with: openssl rand -base64 32'
+      'SESSION_SECRET is required in production.'
     );
   }
   console.warn('SESSION_SECRET is not set — falling back to an insecure development secret.');
