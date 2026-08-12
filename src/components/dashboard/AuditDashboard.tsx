@@ -2,6 +2,7 @@
 
 import React from "react";
 import { AlertTriangle, Ban, Play, X } from "lucide-react";
+import { toast } from "@/components/godui/toast";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { MonoValue } from "@/components/ui/MonoValue";
 import { PullToRefresh } from "@/components/motion/pull-to-refresh";
@@ -325,7 +326,17 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
                       onDisableRule
                         ? (id) => {
                             setDisablingId(id);
-                            void onDisableRule(id).finally(() => setDisablingId(null));
+                            void onDisableRule(id)
+                              .catch((error: unknown) =>
+                                toast.error({
+                                  title: "Couldn't disable rule",
+                                  description:
+                                    error instanceof Error && error.message
+                                      ? error.message
+                                      : "The request failed. Try again.",
+                                }),
+                              )
+                              .finally(() => setDisablingId(null));
                           }
                         : undefined
                     }
@@ -333,7 +344,17 @@ export const AuditDashboard: React.FC<AuditDashboardProps> = ({
                       onEnableRule
                         ? (id) => {
                             setEnablingId(id);
-                            void onEnableRule(id).finally(() => setEnablingId(null));
+                            void onEnableRule(id)
+                              .catch((error: unknown) =>
+                                toast.error({
+                                  title: "Couldn't enable rule",
+                                  description:
+                                    error instanceof Error && error.message
+                                      ? error.message
+                                      : "The request failed. Try again.",
+                                }),
+                              )
+                              .finally(() => setEnablingId(null));
                           }
                         : undefined
                     }
