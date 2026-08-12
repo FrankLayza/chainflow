@@ -43,8 +43,13 @@ export async function broadcastTransfer(
   const { targetAddress, transferAmount } = rule.parameters;
   const idempotencyKey = crypto.randomUUID();
 
+  // Capture the id registerActiveRule actually used. LLM-parsed rules carry no
+  // `rule.id`, so registerActiveRule mints its own — and updateActiveRule then
+  // needs that id, not `rule.id ?? record.id`, or the one-shot row is left
+  // ACTIVE forever (and the cron re-fires a threshold-0 BALANCE_ABOVE).
+  let activeRuleId: string | null = null;
   if (markRuleTerminal) {
-    await registerActiveRule(rule, sessionId);
+    activeRuleId = (await registerActiveRule(rule, sessionId)).id;
   }
 
   let khResponse: Record<string, unknown> | null = null;
@@ -130,9 +135,9 @@ export async function broadcastTransfer(
     `Execution ${viaMcp ? 'via KeeperHub MCP' : 'via KeeperHub REST (MCP fallback)'}. Tx: ${txHash || 'pending'}`
   );
 
-  if (markRuleTerminal) {
+  if (markRuleTerminal && activeRuleId) {
     try {
-      await updateActiveRule(rule.id ?? record.id, {
+      await updateActiveRule(activeRuleId, {
         status: txHash ? 'COMPLETED' : 'FAILED',
         last_executed_at: new Date().toISOString(),
       });

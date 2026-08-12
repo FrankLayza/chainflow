@@ -63,11 +63,12 @@ If the prompt asks for something out of scope or is missing a valid 0x address, 
       });
 
       // Post-LLM trigger guard ---------------------------------------------
-      // Gemini has invented a SCHEDULED_INTERVAL for bare transfers
-      // ("send 0.001 eth to 0x…" became "every 24 hours"). Recompute the
-      // trigger-word cues deterministically and refuse any deferred ruleType
-      // whose cue the prompt never contained, coercing it back toward the
-      // immediate transfer the user actually asked for.
+      // Gemini has invented deferred triggers for bare transfers
+      // ("send 0.001 eth to 0x…" became "every 24 hours", or a BALANCE_ABOVE
+      // with the transfer amount copied into thresholdAmount). Recompute the
+      // trigger-word cues deterministically and refuse any ruleType whose cue
+      // the prompt never contained, coercing it back toward the immediate
+      // transfer the user actually asked for.
       const hasScheduledCue =
         /every|hours?|hrs?|days?|schedule|daily|recurring|interval|weekly|monthly/i.test(
           trimmed,
@@ -96,6 +97,16 @@ If the prompt asks for something out of scope or is missing a valid 0x address, 
         object.ruleType = 'BALANCE_ABOVE';
         object.parameters.intervalHours = undefined;
         if (!hasBalanceCue) object.parameters.thresholdAmount = '0';
+        coerced = true;
+      } else if (object.ruleType === 'BALANCE_ABOVE' && !hasBalanceCue) {
+        // Gemini labels a bare transfer as BALANCE_ABOVE and copies the amount
+        // into thresholdAmount ("send 0.003 eth" → "exceeds 0.003"). With no
+        // balance cue that threshold is invented, so flatten it to the
+        // always-true zero threshold (fire immediately) — the same treatment
+        // the deterministic parser gives a bare transfer.
+        object.parameters.thresholdAmount = '0';
+        object.parameters.intervalHours = undefined;
+        object.parameters.intervalMinutes = undefined;
         coerced = true;
       }
 
