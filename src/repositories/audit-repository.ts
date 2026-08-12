@@ -348,7 +348,7 @@ export async function claimScheduledFire(
   const result = await db.execute({
     sql: `UPDATE active_rules
           SET last_executed_at = :now, last_checked_at = :now
-          WHERE id = :id AND last_executed_at IS :expected`,
+          WHERE id = :id AND status = 'ACTIVE' AND last_executed_at IS :expected`,
     args: args({ id, now, expected: expectedLastExecutedAt }),
   });
   return Number(result.rowsAffected) > 0;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getQueuedActiveRules,
+  getActiveRule,
   updateActiveRule,
   claimScheduledFire,
   ActiveRule,
@@ -154,6 +155,11 @@ async function evaluatePrice(rule: ActiveRule, price: number): Promise<RuleCheck
     return { ...base, message: `${guard.reason || 'Insufficient balance'} Skipped this fire.` };
   }
 
+  const freshRule = await getActiveRule(rule.id);
+  if (freshRule?.status !== 'ACTIVE') {
+    return { ...base, message: 'Rule paused before broadcast; skipped.' };
+  }
+
   await broadcastTransfer(parsed, rule.session_id);
   return {
     ...base,
@@ -197,6 +203,11 @@ async function evaluateBalance(rule: ActiveRule): Promise<RuleCheck> {
   if (!guard.ok) {
     await updateActiveRule(rule.id, { last_checked_at: new Date().toISOString() });
     return { ...base, message: `${guard.reason || 'Insufficient balance'} Skipped this fire.` };
+  }
+
+  const freshRule = await getActiveRule(rule.id);
+  if (freshRule?.status !== 'ACTIVE') {
+    return { ...base, message: 'Rule paused before broadcast; skipped.' };
   }
 
   await broadcastTransfer(parsed, rule.session_id);

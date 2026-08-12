@@ -238,6 +238,24 @@ export default function AppPage() {
 
   const refreshAudit = useCallback(() => setAuditRefreshKey((key) => key + 1), []);
 
+  const patchRuleStatus = useCallback(
+    (ruleId: string, status: string) => {
+      setAudit((prev) => {
+        if (prev.kind !== 'ready') return prev;
+        return {
+          ...prev,
+          data: {
+            ...prev.data,
+            rules: prev.data.rules.map((r) =>
+              r.id === ruleId ? { ...r, status } : r,
+            ),
+          },
+        };
+      });
+    },
+    [],
+  );
+
   const disableRule = useCallback(async (ruleId: string) => {
     const res = await fetch('/api/rules/disable', {
       method: 'POST',
@@ -246,8 +264,9 @@ export default function AppPage() {
     });
     const data = await readJson(res);
     if (!res.ok) throw new Error(data?.error || 'Failed to disable rule');
+    patchRuleStatus(ruleId, 'PAUSED');
     setAuditRefreshKey((key) => key + 1);
-  }, []);
+  }, [patchRuleStatus]);
 
   const enableRule = useCallback(async (ruleId: string) => {
     const res = await fetch('/api/rules/enable', {
@@ -257,8 +276,9 @@ export default function AppPage() {
     });
     const data = await readJson(res);
     if (!res.ok) throw new Error(data?.error || 'Failed to enable rule');
+    patchRuleStatus(ruleId, 'ACTIVE');
     setAuditRefreshKey((key) => key + 1);
-  }, []);
+  }, [patchRuleStatus]);
 
   const openActivity = useCallback(() => {
     setActivityOpen(true);
