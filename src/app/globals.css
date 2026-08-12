@@ -59,6 +59,9 @@
   --radius-xl: 16px;
   --radius-2xl: 20px;
   --radius-full: 9999px;
+
+  /* Stacking — toast sits above every overlay (drawer uses z-50). */
+  --z-toast: 60;
 }
 
 body {

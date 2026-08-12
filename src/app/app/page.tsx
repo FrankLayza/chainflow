@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { TopBar } from '@/components/layout/TopBar';
 import { Drawer } from '@/components/motion/drawer';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { AuditDashboard } from '@/components/dashboard/AuditDashboard';
+import { ToastProvider, toast } from '@/components/godui/toast';
 import { toReceipt } from '@/lib/receipt';
+import { truncateAddress } from '@/lib/format';
 import {
   AuditData,
   ExecutionReceipt,
@@ -65,6 +67,76 @@ export default function AppPage() {
 
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  // Execution ids already known to this tab, seeded from each audit load. The
+  // cron evaluator writes fired transfers into the arming session's ledger, so a
+  // light poll diffing this set is what turns a cron fire into a toast.
+  const knownExecutionIds = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (audit.kind !== 'ready') return;
+    for (const e of audit.data.executions) knownExecutionIds.current.add(e.id);
+  }, [audit]);
+
+  // Poll for cron-fired executions. Nothing pushes them to the browser — the
+  // cron route has no event channel — so we diff the audit feed every 10s and
+  // toast anything new that the current tab did not itself broadcast. The first
+  // successful response seeds the baseline without toasting so pre-existing
+  // executions never fire on mount.
+  const seeded = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const diff = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      try {
+        const res = await fetch('/api/audit-logs');
+        const data = await readJson(res);
+        if (!res.ok || !data?.success || cancelled) return;
+
+        const executions = (data?.executions ?? []) as AuditData['executions'];
+
+        if (!seeded.current) {
+          for (const e of executions) knownExecutionIds.current.add(e.id);
+          seeded.current = true;
+          return;
+        }
+
+        const fresh = executions.filter((e) => !knownExecutionIds.current.has(e.id));
+        if (fresh.length === 0) return;
+
+        for (const e of fresh) knownExecutionIds.current.add(e.id);
+
+        for (const execution of fresh) {
+          toast.success({
+            title: 'Rule executed',
+            description: `${execution.amount} ETH → ${truncateAddress(execution.recipientAddress)} · ${
+              execution.txHash ? 'confirmed' : 'pending'
+            }`,
+            action: execution.explorerUrl
+              ? {
+                  label: 'View tx',
+                  onClick: () => window.open(execution.explorerUrl, '_blank', 'noopener'),
+                }
+              : undefined,
+          });
+        }
+
+        setAuditRefreshKey((key) => key + 1);
+        setUnseenActivity(true);
+      } catch {
+        // Poll failures are expected to be transient; the next tick retries.
+      }
+    };
+
+    diff();
+    const id = window.setInterval(diff, 10_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
     };
   }, []);
 
@@ -149,6 +221,10 @@ export default function AppPage() {
         const data = await readJson(res);
         if (!res.ok) throw new Error(data?.error || 'Failed to execute rule');
 
+        // The audit record just created is not "fresh" to the poll — toast it
+        // now via the receipt card in chat, never again from the cron diff.
+        if (data?.record?.id) knownExecutionIds.current.add(data.record.id);
+
         setAuditRefreshKey((key) => key + 1);
         setUnseenActivity(true);
 
@@ -190,40 +266,43 @@ export default function AppPage() {
   }, []);
 
   return (
-    <main className="h-dvh w-screen bg-gray-950 text-white font-sans overflow-hidden flex flex-col">
-      <TopBar
-        wallet={wallet}
-        activityOpen={activityOpen}
-        onToggleActivity={() => (activityOpen ? setActivityOpen(false) : openActivity())}
-        unseenActivity={unseenActivity}
-      />
-
-      <div className="relative flex-1 min-h-0">
-        <ChatPanel
-          onParsePrompt={parsePrompt}
-          onSimulateRule={simulateRule}
-          onActivateRule={activateRule}
-          isExecuting={isExecuting}
-          initialPrompt={initialPrompt}
+    <>
+      <main className="h-dvh w-screen bg-gray-950 text-white font-sans overflow-hidden flex flex-col">
+        <TopBar
+          wallet={wallet}
+          activityOpen={activityOpen}
+          onToggleActivity={() => (activityOpen ? setActivityOpen(false) : openActivity())}
+          unseenActivity={unseenActivity}
         />
 
-        <Drawer
-          open={activityOpen}
-          onOpenChange={setActivityOpen}
-          side="right"
-          ariaLabel="Activity"
-          className="w-[420px] bg-gray-900 border-white/[0.06]"
-        >
-          <AuditDashboard
-            audit={audit}
-            onRefresh={refreshAudit}
-            isRefreshing={auditFetching}
-            onDisableRule={disableRule}
-            onEnableRule={enableRule}
-            onClose={() => setActivityOpen(false)}
+        <div className="relative flex-1 min-h-0">
+          <ChatPanel
+            onParsePrompt={parsePrompt}
+            onSimulateRule={simulateRule}
+            onActivateRule={activateRule}
+            isExecuting={isExecuting}
+            initialPrompt={initialPrompt}
           />
-        </Drawer>
-      </div>
-    </main>
+
+          <Drawer
+            open={activityOpen}
+            onOpenChange={setActivityOpen}
+            side="right"
+            ariaLabel="Activity"
+            className="w-[420px] bg-gray-900 border-white/[0.06]"
+          >
+            <AuditDashboard
+              audit={audit}
+              onRefresh={refreshAudit}
+              isRefreshing={auditFetching}
+              onDisableRule={disableRule}
+              onEnableRule={enableRule}
+              onClose={() => setActivityOpen(false)}
+            />
+          </Drawer>
+        </div>
+      </main>
+      <ToastProvider position="bottom-right" />
+    </>
   );
 }
