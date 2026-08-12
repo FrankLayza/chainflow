@@ -112,6 +112,13 @@ async function evaluateScheduled(rule: ActiveRule, parsed: ParsedRule): Promise<
     return { ...base, message: 'Another tick claimed this fire; skipped.' };
   }
 
+  // Re-read status: the user could have paused the rule in the gap between the
+  // claim succeeding and broadcastTransfer running.
+  const freshRule = await getActiveRule(rule.id);
+  if (freshRule?.status !== 'ACTIVE') {
+    return { ...base, message: 'Rule paused after claim; broadcast skipped.' };
+  }
+
   await broadcastTransfer(parsed, rule.session_id, { markRuleTerminal: false });
   return { ...base, fired: true, message: `Recurring transfer fired (every ${interval}).` };
 }
