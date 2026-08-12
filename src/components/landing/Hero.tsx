@@ -77,7 +77,7 @@ export function Hero() {
 
         <motion.div
           variants={heroItem}
-          className="mt-8 pointer-events-auto justify-center"
+          className="mt-10 pointer-events-auto justify-center"
         >
           <ExpandingArrowButton
             onClick={() => router.push("/app")}
