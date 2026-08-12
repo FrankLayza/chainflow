@@ -1,18 +1,9 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion, type HTMLMotionProps } from "framer-motion";
 import * as React from "react";
 
-export type GooeyStackProps = Omit<
-  React.HTMLAttributes<HTMLDivElement>,
-  "onChange"
-> & {
-  /**
-   * The inner content of each card, top to bottom — the last is the anchor.
-   * GooeyStack renders the fused `bg-card` surface itself, so children should
-   * be transparent content (padding + text/controls), not their own cards.
-   * Provide 2+.
-   */
+export type GooeyStackProps = Omit<HTMLMotionProps<"div">, "children"> & {
   children?: React.ReactNode;
   /**
    * Controlled vertical gap (px) between cards. Negative values overlap and
@@ -102,6 +93,8 @@ const GooeyStack = React.forwardRef<HTMLDivElement, GooeyStackProps>(
     const expandedTotal =
       heights.reduce((s, h) => s + h, 0) + Math.max(0, n - 1) * expandedGap;
 
+    const visibleHeight = collapsed ? (heights[0] ?? 0) : expandedTotal;
+
     // How far into "merged" territory the current gap is (0 while g ≥ 0, ramps
     // to 1 at collapsedGap). Recede effects only kick in once cards overlap, so
     // through the small positive-gap zone the cards stay sharp and only their
@@ -148,14 +141,17 @@ const GooeyStack = React.forwardRef<HTMLDivElement, GooeyStackProps>(
     const transition = reduce ? { duration: 0 } : SPRING;
 
     return (
-      <div
+      <motion.div
         ref={forwardedRef}
         data-slot="gooey-stack"
         data-collapsed={g < expandedGap ? "true" : undefined}
-        className={`relative w-full ${className ?? ""}`}
-        style={{ height: expandedTotal || undefined, ...style }}
+        className={`relative w-full overflow-hidden ${className ?? ""}`}
+        initial={false}
+        animate={{ height: visibleHeight || undefined }}
+        transition={transition}
         {...props}
       >
+        <div className="absolute inset-x-0 top-0" style={{ height: expandedTotal || undefined }}>
         {/* Goo filter — fuses the card silhouettes into liquid metaballs. */}
         <svg aria-hidden="true" className="pointer-events-none absolute size-0">
           <defs>
@@ -336,7 +332,8 @@ const GooeyStack = React.forwardRef<HTMLDivElement, GooeyStackProps>(
             );
           })}
         </div>
-      </div>
+        </div>
+      </motion.div>
     );
   },
 );
