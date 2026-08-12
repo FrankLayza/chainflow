@@ -129,6 +129,7 @@ function RuleRow({
   enabling?: boolean;
 }) {
   const isActive = rule.status === "ACTIVE";
+  const isPaused = rule.status === "PAUSED";
   const ruleId = rule.id;
 
   return (
@@ -136,7 +137,8 @@ function RuleRow({
       <div className="flex items-center justify-between gap-3">
         <span className="font-mono text-xs text-violet-400">{rule.ruleType}</span>
         <div className="flex items-center gap-2 shrink-0">
-          {isActive && <StatusBadge tone="live" label="Active" />}
+          {isActive && <StatusBadge tone="live" label="Active" pulse />}
+          {isPaused && <StatusBadge tone="neutral" label="Paused" />}
           <span className="font-mono text-[11px] text-gray-500">{rule.network}</span>
         </div>
       </div>
