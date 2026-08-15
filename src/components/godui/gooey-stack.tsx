@@ -269,7 +269,7 @@ const GooeyStack = React.forwardRef<HTMLDivElement, GooeyStackProps>(
             fallback above shows instead). */}
         <motion.svg
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 overflow-visible transform-[translateZ(0)]"
+          className="pointer-events-none absolute inset-0 overflow-visible [transform:translateZ(0)]"
           width="100%"
           height="100%"
           style={{ opacity: reduce ? 0 : 1 }}

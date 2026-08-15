@@ -113,9 +113,11 @@ async function evaluateScheduled(rule: ActiveRule, parsed: ParsedRule): Promise<
   }
 
   // Re-read status: the user could have paused the rule in the gap between the
-  // claim succeeding and broadcastTransfer running.
+  // claim succeeding and broadcastTransfer running. Roll back the claim's
+  // last_executed_at — nothing was broadcast, so the fire is not consumed.
   const freshRule = await getActiveRule(rule.id);
   if (freshRule?.status !== 'ACTIVE') {
+    await updateActiveRule(rule.id, { last_executed_at: rule.last_executed_at ?? null });
     return { ...base, message: 'Rule paused after claim; broadcast skipped.' };
   }
 
